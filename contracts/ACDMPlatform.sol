@@ -1,50 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-// изменили финальное задание, сделалаи обширным и интересным, задействуем все прошлые проекты
-// Связываем их в единую цепь
-// Привязка к каждому из ПРОШЛЫХ проектов
-
-// ACDMToken for ACDMPlatform
-// XXXToken для листинга на uniswap (LP token)
-// Staking депозит LP Токена
-
-// 2 раунда: раунд продажи(SaleRound), раунд торогов
-// В SaleRound:
-// мы покупаем токены у платформы
-// Цена на токен постоянно растет, 1$ => 2$ => 3$
-// Количество постоянно уменьшается, зависит от торогов которые проходили в TradeRound
-// Если в TradeRound не было совершено ни одного обмена(ни одного свапа между пользователями), то в SaleRound мы не будем продавать вообще ни один ACDM Token
-// Самый первый раунд продает токенны на сумму 1ETH (100 000 ACDM)
-
-// В момент старта просчитываем сколько токенов мы будем продавать и у контракта ACDMPlatform есть право mint и burn
-// Начали SaleRound(function startSaleRound()) => mint(ACDMPlatform)
-// Объём продаж зависит от объём торгов(TradeRound)
-// Объём торгов TradeRound = 1 ETH => Объём продаж SaleRound = 1 ETH (100.000 ACDMToken можем продать)
-// фиксированная цена по формуле(Price ETH = lastPrice*1,03+0,000004)
-// Все что не продали => burn
-// После продажи SaleRound можем переключиться на TradeRound
-// В TradeRound:
-// продаем токены между друг другом
-// по фиксированной цене, которую они задают
-// Обязательно должно пройти 3 дня
-
-// Реферальная система:
-// Система состоит из 2 уровней
-// Я -> register(vasyaAddress):
-// 1 уровень - Вася
-// 2 уровень - Петя
-// Вася:
-// 1 уровень - Петя
-
-// Я позвал Васю, Вася позвал Петю, и теперь когда Петя делает какие то действия капают проценты мне и Васе с действий Пети
-// Нужны ли event от отчислений по рефералу?
-//    what's optimal? mint or mint -> transfer -> transfer -> burn
-
-// Crypton Academy => Crypton Factory
-// Переименовать токен
-// Documentation
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 

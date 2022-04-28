@@ -121,8 +121,10 @@ contract ACDMPlatform {
         delete tradeRoundFinishAt;
     }
 
-    // 95% - platform, 2.5% to referals
-    // if no referals then 100% to platform
+    /**
+    * @dev Purchase ACDMTokens during Sales Round.
+    * The amount of tokens depends on the amount of ETH.
+    */
     function buyACDM() external payable {
         require(msg.value > 0, "Value should be positive");
         require(saleRoundFinishAt > block.timestamp, "Sales round is not active");
@@ -157,11 +159,11 @@ contract ACDMPlatform {
         ACDMToken.mint(msg.sender, amountTokens);
     }
 
-    // После 3 дней или после продажи всех токенов в SaleRound
-    // burn невыкупленных токенов в SaleRound
-    // Появляется возможность добавлять и удалять ордера(order) и выкупать
-    // by any user, главное чтобы совпадали все условия
-    // переплата?
+    /**
+    * @dev Trade Round can be started after the roundTime or after the buyback of all tokens.
+    * It becomes available to add, redeem and delete orders.
+    * Can be called by any user.
+    */
     function startTradeRound() external {
         require(saleRoundFinishAt != 1, "Sales round never started");
         require(saleRoundFinishAt < block.timestamp, "Sales round is active");
@@ -173,10 +175,12 @@ contract ACDMPlatform {
         delete saleRoundFinishAt;
     }
 
-    // допустим 5 ACDMTokens за 0.5ETH => дорого, удаляю => removeOrder()
-    // 5 ACDMTokens за 0.01ETH peer one => дорого, удаляю => removeOrder()
-    // Остается на следующий раунд, пока его не выкупят или не отменяет
-    // onlyTradeRound
+    /**
+    * @dev Order stays until it is redeemed or deleted.
+    * Available during the Trade Round.
+    * @param _amount Amount tokens
+    * @param _pricePerToken Price per token
+    */
     function addOrder(uint256 _amount, uint256 _pricePerToken) external onlyTradeRound {
         require(_amount > 0, "Amount should be positive");
         require(_pricePerToken > 0, "Price should be positive");
@@ -194,8 +198,11 @@ contract ACDMPlatform {
         emit NewOrder(orderId, msg.sender, _amount, _pricePerToken);
     }
 
-    // можно выкупить неполный order
-    // onlyTradeRound
+    /**
+    * @dev The order may not be fully redeemed.
+    * Available during the Trade Round.
+    * @param _orderId Order ID
+    */
     function redeemOrder(uint256 _orderId) external onlyTradeRound payable {
         require(msg.value > 0, "Value should be positive");
         Order memory order = _orders[_orderId];

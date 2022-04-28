@@ -61,9 +61,12 @@ contract ACDMPlatform {
     Counters.Counter private _orderCounter;
 
     uint256 public roundTime;
-    uint256 public ethPerTokens = 10_000 gwei;
     uint256 public amountTokensForSale;
+    uint256 public ethPerTokens = 10_000 gwei;
     uint256 public totalTradingSum = 1 ether;
+
+    /// When the value equals 1, trade round cannot be started
+    /// This ensures that the sales round will be the first
     uint256 public saleRoundFinishAt = 1;
     uint256 public tradeRoundFinishAt;
 

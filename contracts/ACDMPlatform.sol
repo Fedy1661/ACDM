@@ -95,9 +95,10 @@ contract ACDMPlatform {
         ACDMToken = IERC20Mintable(_ACDMToken);
         roundTime = _roundTime;
      }
-
-    /// @dev Unnecessary function to use the platform.
-    /// @param _referrer Referral's address
+    /**
+    * @dev Unnecessary function to use the platform.
+    * @param _referrer Referral's address
+    */
     function register(address _referrer) external {
         require(_firstReferralLevel[msg.sender] == address(0), "You are already registered");
         _firstReferralLevel[msg.sender] = _referrer;
@@ -106,10 +107,11 @@ contract ACDMPlatform {
             _secondReferralLevel[msg.sender] = referrerFirstLevel;
     }
 
-    // Первый раз стартуерт saleRound
-    // после 3 дней если не первый раз
-    // by any user, главное чтобы совпадали все условия
-    // просчитываем сколько токенов будет создано в этом раунде
+    /**
+    * @dev Sales Round starts for the first time.
+    * It ends after the time of the round or the purchase of all tokens.
+    * Can be called by any user.
+    */
     function startSaleRound() external {
         require(saleRoundFinishAt <= 1, "Sales round is already active");
         require(block.timestamp > tradeRoundFinishAt, "Trade round is active");

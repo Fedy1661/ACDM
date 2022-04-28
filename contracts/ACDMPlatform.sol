@@ -118,6 +118,7 @@ contract ACDMPlatform {
     */
     function startTradeRound() external {
         require(saleRoundFinishAt != 1, "Sales round never started");
+        require(tradeRoundFinishAt == 0, "Trade round is already active");
         require(saleRoundFinishAt < block.timestamp, "Sales round is active");
 
         tradeRoundFinishAt = block.timestamp + roundTime;

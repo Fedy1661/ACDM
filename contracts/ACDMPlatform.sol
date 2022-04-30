@@ -87,7 +87,7 @@ contract ACDMPlatform is Ownable {
 
         delete tradeRoundFinishAt;
 
-        emit StartSaleRound(_amountTokensForSale, ethPerToken_, _saleRoundFinishAt); // uint32
+        emit StartSaleRound(_amountTokensForSale, ethPerToken_, _saleRoundFinishAt);
     }
 
     /**

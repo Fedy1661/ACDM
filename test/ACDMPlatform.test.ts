@@ -2,7 +2,7 @@ import { ethers, network } from "hardhat";
 import chai, { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
 import { ACDMPlatform, ACDMPlatform__factory, Token } from "../typechain";
-import { BigNumber } from "ethers";
+import { BigNumber, ContractTransaction } from "ethers";
 
 chai.use(require("chai-bignumber")());
 
@@ -11,11 +11,17 @@ async function increaseTime(time: number) {
   await network.provider.send("evm_mine");
 }
 
+async function getTransactionFee(tx: ContractTransaction) {
+  const { effectiveGasPrice, cumulativeGasUsed } = await tx.wait();
+  return effectiveGasPrice.mul(cumulativeGasUsed);
+}
+
 describe("ACDMPlatform Contract", function () {
   let platform: ACDMPlatform;
   let token: Token;
   let totalSumForAllTokens: BigNumber;
   let amountTokensForSale: BigNumber;
+  let initialEthPerToken: BigNumber;
   let owner: SignerWithAddress;
   let addr1: SignerWithAddress;
   let addr2: SignerWithAddress;
@@ -35,12 +41,10 @@ describe("ACDMPlatform Contract", function () {
     );
     platform = await Platform.deploy(token.address, roundTime);
 
-    const totalTradingSum = await platform.totalTradingSum()
-    const ethPerTokens = await platform.ethPerTokens();
-    amountTokensForSale = totalTradingSum.div(ethPerTokens)
-    totalSumForAllTokens = amountTokensForSale.mul(
-      await platform.ethPerTokens()
-    );
+    const totalTradingSum = await platform.totalTradingSum();
+    initialEthPerToken = await platform.ethPerToken();
+    amountTokensForSale = totalTradingSum.div(initialEthPerToken);
+    totalSumForAllTokens = amountTokensForSale.mul(initialEthPerToken);
 
     await token.transferOwnership(platform.address);
 
@@ -51,59 +55,86 @@ describe("ACDMPlatform Contract", function () {
     clean = await network.provider.send("evm_snapshot");
   });
 
+  it("should revert if msg.value lower than price per token", async () => {
+    await platform.startSaleRound();
+    const tx = platform.buyACDM({ value: 1 });
+    const reason = "Not enough ETH";
+    await expect(tx).to.be.revertedWith(reason);
+  });
+  it("should revert if msg.value lower than order price", async () => {
+    const value = totalSumForAllTokens;
+    await platform.startSaleRound();
+    await platform.buyACDM({ value });
+    await platform.startTradeRound();
+    await token.approve(platform.address, amountTokensForSale);
+    await platform.addOrder(amountTokensForSale, totalSumForAllTokens);
+
+    const tx = platform.redeemOrder(1, { value: 1 });
+    const reason = "Not enough ETH";
+    await expect(tx).to.be.revertedWith(reason);
+  });
+
   describe("AmountTokensForSale", () => {
     it("the initial value should be 100000", async () => {
-      await platform.startSaleRound()
-      await expect(await platform.amountTokensForSale()).to.be.eq(100000)
+      await platform.startSaleRound();
+      await expect(await platform.amountTokensForSale()).to.be.eq(100000);
     });
     it("amount of tokens for sale should be decreased", async () => {
-      await platform.startSaleRound()
-      await platform.buyACDM({value: totalSumForAllTokens})
-      await platform.startTradeRound()
+      const value = totalSumForAllTokens;
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+      await platform.startTradeRound();
 
       await increaseTime(roundTime);
 
-      await expect(await platform.amountTokensForSale()).to.be.eq(0)
+      await expect(await platform.amountTokensForSale()).to.be.eq(0);
     });
   });
-  describe("EthPerTokens", () => {
+  describe("ethPerToken", () => {
     it("should increase after each round", async () => {
-      await platform.startSaleRound()
-      await platform.buyACDM({value: totalSumForAllTokens})
-      await platform.startTradeRound()
+      await platform.startSaleRound();
+      await platform.buyACDM({ value: totalSumForAllTokens });
+      await platform.startTradeRound();
 
       await increaseTime(roundTime);
 
       await platform.startSaleRound();
 
-      const ethPerTokens = await platform.ethPerTokens();
-      await expect(ethPerTokens).to.be.eq(14300000000000)
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(14300000000000);
     });
     it("the initial value should be 0.00001 ETH", async () => {
-      await platform.startSaleRound()
-      const ethPerTokens = await platform.ethPerTokens();
-      await expect(ethPerTokens).to.be.eq(ethers.utils.parseEther('0.00001'))
+      await platform.startSaleRound();
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(ethers.utils.parseEther("0.00001"));
     });
   });
   it("should revert if after sales round start sales round", async () => {
-    await platform.startSaleRound()
+    await platform.startSaleRound();
+
     await increaseTime(roundTime);
+
     const tx = platform.startSaleRound();
-    const reason = "Sales round is already active"
-    await expect(tx).to.be.revertedWith(reason)
+    const reason = "Sales round is already active";
+    await expect(tx).to.be.revertedWith(reason);
   });
   it("should revert if after trade round start trade round", async () => {
-    await platform.startSaleRound()
+    await platform.startSaleRound();
+
     await increaseTime(roundTime);
-    await platform.startTradeRound()
-    await increaseTime(roundTime)
+
+    await platform.startTradeRound();
+
+    await increaseTime(roundTime);
+
     const tx = platform.startTradeRound();
-    const reason = "Trade round is already active"
-    await expect(tx).to.be.revertedWith(reason)
+    const reason = "Trade round is already active";
+    await expect(tx).to.be.revertedWith(reason);
   });
   describe("register", () => {
     it("should revert if user has already registered", async () => {
       await platform.connect(addr2).register(addr1.address);
+
       const tx = platform.connect(addr2).register(addr1.address);
       const reason = "You are already registered";
       await expect(tx).to.be.revertedWith(reason);
@@ -121,6 +152,22 @@ describe("ACDMPlatform Contract", function () {
       );
       expect(platformBalance).to.be.eq(totalSumForAllTokens);
     });
+    it("should get back excess value", async () => {
+      const excessValue = 1;
+      const value = initialEthPerToken.add(excessValue);
+      await platform.startSaleRound();
+
+      const beforeBalance = await owner.getBalance();
+
+      const tx = await platform.buyACDM({ value });
+      const transactionFee = await getTransactionFee(tx);
+
+      const afterBalance = await owner.getBalance();
+
+      expect(beforeBalance.sub(transactionFee).sub(afterBalance)).to.be.eq(
+        value.sub(excessValue)
+      );
+    });
     it("sales round should be completed if all tokens are sold", async () => {
       await platform.startSaleRound();
       await platform.buyACDM({ value: totalSumForAllTokens });
@@ -129,8 +176,7 @@ describe("ACDMPlatform Contract", function () {
     });
     it("first referral level should receive percent", async () => {
       const value = totalSumForAllTokens.div(2);
-      const rewardFirstReferralLevel =
-        await platform.rewardFirstReferralLevel();
+      const [rewardFirstReferralLevel] = await platform.getReferralRewardBuyACDM();
       const reward = value.mul(rewardFirstReferralLevel).div(1000);
 
       await platform.connect(addr2).register(addr1.address);
@@ -145,8 +191,7 @@ describe("ACDMPlatform Contract", function () {
     });
     it("second referral level should receive percent", async () => {
       const value = totalSumForAllTokens;
-      const rewardSecondReferralLevel =
-        await platform.rewardSecondReferralLevel();
+      const [_, rewardSecondReferralLevel] = await platform.getReferralRewardBuyACDM();
       const reward = value.mul(rewardSecondReferralLevel).div(1000);
 
       // addr1
@@ -196,7 +241,7 @@ describe("ACDMPlatform Contract", function () {
       const value = totalSumForAllTokens;
       const percent = 95;
 
-      await platform.register(addr1.address)
+      await platform.register(addr1.address);
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
@@ -204,14 +249,16 @@ describe("ACDMPlatform Contract", function () {
       const platformBalance = await platform.provider.getBalance(
         platform.address
       );
-      expect(platformBalance).to.be.eq(totalSumForAllTokens.mul(percent).div(100));
+      expect(platformBalance).to.be.eq(
+        totalSumForAllTokens.mul(percent).div(100)
+      );
     });
     it("platform should get 92% if buyer is at second referral level", async () => {
       const value = totalSumForAllTokens;
       const percent = 92;
 
-      await platform.connect(addr1).register(addr2.address)
-      await platform.register(addr1.address)
+      await platform.connect(addr1).register(addr2.address);
+      await platform.register(addr1.address);
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
@@ -219,7 +266,9 @@ describe("ACDMPlatform Contract", function () {
       const platformBalance = await platform.provider.getBalance(
         platform.address
       );
-      expect(platformBalance).to.be.eq(totalSumForAllTokens.mul(percent).div(100));
+      expect(platformBalance).to.be.eq(
+        totalSumForAllTokens.mul(percent).div(100)
+      );
     });
   });
   it("should revert if start trade round at first", async () => {
@@ -267,15 +316,15 @@ describe("ACDMPlatform Contract", function () {
       const tx = platform.connect(addr1).startSaleRound();
       await expect(tx).not.to.be.reverted;
     });
-    it("should increase ethPerTokens", async () => {
-      const beforeEthPerTokens = await platform.ethPerTokens();
+    it("should increase ethPerToken", async () => {
+      const beforeethPerToken = await platform.ethPerToken();
       await platform.startSaleRound();
       await increaseTime(roundTime);
       await platform.startTradeRound();
       await increaseTime(roundTime);
-      const afterEthPerTokens = await platform.ethPerTokens();
+      const afterethPerToken = await platform.ethPerToken();
 
-      expect(afterEthPerTokens).to.be.gt(beforeEthPerTokens);
+      expect(afterethPerToken).to.be.gt(beforeethPerToken);
     });
   });
   it("should debit tokens from the seller", async () => {
@@ -306,6 +355,20 @@ describe("ACDMPlatform Contract", function () {
     expect(balance).to.be.eq(amountTokensForSale);
   });
   describe("addOrder", () => {
+    it("should create several orders", async () => {
+      const value = totalSumForAllTokens;
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+
+      await token.approve(platform.address, amountTokensForSale);
+
+      await platform.addOrder(amountTokensForSale.div(2), 1);
+      const tx = platform.addOrder(amountTokensForSale.div(2), 1);
+      await expect(tx).not.to.be.reverted;
+    });
     it("should revert if trade round is not active", async () => {
       const value = totalSumForAllTokens.div(2);
 
@@ -317,8 +380,8 @@ describe("ACDMPlatform Contract", function () {
       await token.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(amountTokensForSale, 1);
-      const reason = "Trade round is not active"
-      await expect(tx).to.be.revertedWith(reason)
+      const reason = "Trade round is not active";
+      await expect(tx).to.be.revertedWith(reason);
     });
     it("should revert if amount is not positive", async () => {
       const value = totalSumForAllTokens;
@@ -327,13 +390,13 @@ describe("ACDMPlatform Contract", function () {
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
-      await platform.startTradeRound()
+      await platform.startTradeRound();
 
       await token.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(0, 1);
-      const reason = "Amount should be positive"
-      await expect(tx).to.be.revertedWith(reason)
+      const reason = "Amount should be positive";
+      await expect(tx).to.be.revertedWith(reason);
     });
     it("should revert if price is not positive", async () => {
       const value = totalSumForAllTokens;
@@ -342,13 +405,13 @@ describe("ACDMPlatform Contract", function () {
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
-      await platform.startTradeRound()
+      await platform.startTradeRound();
 
       await token.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(amountTokensForSale, 0);
-      const reason = "Price should be positive"
-      await expect(tx).to.be.revertedWith(reason)
+      const reason = "Price should be positive";
+      await expect(tx).to.be.revertedWith(reason);
     });
     it("should revert if not enough tokens", async () => {
       const value = totalSumForAllTokens;
@@ -357,19 +420,88 @@ describe("ACDMPlatform Contract", function () {
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
-      await platform.startTradeRound()
+      await platform.startTradeRound();
 
       await token.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(amountTokensForSale.mul(2), 1);
-      const reason = "Not enough tokens"
-      await expect(tx).to.be.revertedWith(reason)
+      const reason = "You can't transfer so tokens from this user";
+      await expect(tx).to.be.revertedWith(reason);
     });
   });
   describe("redeemOrder", () => {
+    it("order seller should get ETH", async () => {
+      const value = totalSumForAllTokens;
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await owner.getBalance();
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: amountTokensForSale });
+      const afterBalance = await owner.getBalance();
+
+      expect(afterBalance).to.be.eq(beforeBalance.add(amountTokensForSale));
+    });
+    it("should return excess ETH to buyer", async () => {
+      let value = totalSumForAllTokens;
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      value = amountTokensForSale;
+      const excessValue = value.mul(2);
+      const beforeBalance = await addr1.getBalance();
+
+      const tx = await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: excessValue });
+      const transactionFee = await getTransactionFee(tx);
+
+      const afterBalance = await addr1.getBalance();
+
+      expect(beforeBalance.sub(transactionFee).sub(afterBalance)).to.be.eq(
+        value
+      );
+    });
+    it("should get back excess value", async () => {
+      const pricePerToken = 10;
+      let value = totalSumForAllTokens;
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, pricePerToken);
+
+      value = BigNumber.from(pricePerToken);
+      const excessValue = value.add(1);
+      const beforeBalance = await addr1.getBalance();
+
+      const tx = await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: excessValue });
+      const transactionFee = await getTransactionFee(tx);
+
+      const afterBalance = await addr1.getBalance();
+
+      expect(beforeBalance.sub(transactionFee).sub(afterBalance)).to.be.eq(
+        value
+      );
+    });
     it("should transfer percent to first referral level", async () => {
       const value = totalSumForAllTokens;
-      const percent = await platform.rewardReferralsRedeemOrder()
+      const percent = await platform.rewardReferralsRedeemOrder();
       const reward = amountTokensForSale.mul(percent).div(1000);
 
       await platform.register(addr2.address);
@@ -391,7 +523,7 @@ describe("ACDMPlatform Contract", function () {
     });
     it("should transfer percent to second referral level", async () => {
       const value = totalSumForAllTokens;
-      const percent = await platform.rewardReferralsRedeemOrder()
+      const percent = await platform.rewardReferralsRedeemOrder();
       const reward = amountTokensForSale.mul(percent).div(1000);
 
       await platform.connect(addr2).register(addr1.address);
@@ -426,8 +558,7 @@ describe("ACDMPlatform Contract", function () {
       const tx = await platform
         .connect(addr1)
         .redeemOrder(1, { value: amountTokensForSale.mul(2) });
-      const { effectiveGasPrice, cumulativeGasUsed } = await tx.wait();
-      const transactionFee = effectiveGasPrice.mul(cumulativeGasUsed);
+      const transactionFee = await getTransactionFee(tx)
       const afterBalance = await addr1.getBalance();
 
       await expect(
@@ -449,7 +580,7 @@ describe("ACDMPlatform Contract", function () {
       await expect(tx).to.be.revertedWith(reason);
     });
     it("should revert if trade round is not active", async () => {
-      const tx = platform.redeemOrder(2, {value: amountTokensForSale});
+      const tx = platform.redeemOrder(2, { value: amountTokensForSale });
       const reason = "Trade round is not active";
       await expect(tx).to.be.revertedWith(reason);
     });
@@ -533,4 +664,30 @@ describe("ACDMPlatform Contract", function () {
       expect(balance).to.be.eq(amountTokensForSale);
     });
   });
+  describe("setReferralRewardBuyACDM", () => {
+    it("should set new percents", async () => {
+      await platform.setReferralRewardBuyACDM(100, 100);
+      const [first, second] = await platform.getReferralRewardBuyACDM()
+      expect(first).to.be.equal(100)
+      expect(second).to.be.equal(100)
+    });
+    it("should revert if first level percent plus second level percent greater than 100", async () => {
+      const tx = platform.setReferralRewardBuyACDM(500, 501);
+      const reason = "Incorrect percent";
+      await expect(tx).to.be.revertedWith(reason)
+    });
+  });
+  describe("setReferralRewardRedeemOrder", () => {
+    it("should set new percent", async () => {
+      await platform.setReferralRewardRedeemOrder(300);
+      const percent = await platform.rewardReferralsRedeemOrder()
+      await expect(percent).to.be.equal(300)
+    });
+    it("should revert if percent greater than 50", async () => {
+      const tx = platform.setReferralRewardRedeemOrder(1001);
+      const reason = "Incorrect percent";
+      await expect(tx).to.be.revertedWith(reason)
+    });
+  });
+  describe("Events", () => {});
 });

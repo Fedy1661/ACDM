@@ -34,8 +34,7 @@ contract ACDMPlatform is Ownable {
         uint256 amount; /// Amount tokens
     }
 
-    mapping(address => address) private _firstReferralLevel; /// 1 level. referral => referrer
-    mapping(address => address) private _secondReferralLevel; /// 2 level. referral => referrer
+    mapping(address => address) private _referrals; /// referral => referrer
     mapping(uint256 => Order) private _orders; /// Contains orders. orderID => Order
 
     event NewOrder(uint256 indexed orderId, address indexed seller, uint256 amount, uint256 pricePerToken);
@@ -62,13 +61,13 @@ contract ACDMPlatform is Ownable {
     */
     function register(address _referrer) external {
         /// Revert if the user has a referrer
-        require(_firstReferralLevel[msg.sender] == address(0), "You are already registered");
-        _firstReferralLevel[msg.sender] = _referrer; /// Assign a referrer to a registered user
+        require(_referrals[msg.sender] == address(0), "You are already registered");
+        _referrals[msg.sender] = _referrer; /// Assign a referrer to a registered user
 
         /// If the referrer has a referrer, then the registered user also gets level 2
-        address referrerFirstLevel = _firstReferralLevel[_referrer];
+        address referrerFirstLevel = _referrals[_referrer];
         if (referrerFirstLevel != address(0))
-            _secondReferralLevel[msg.sender] = referrerFirstLevel;
+            _referrals[_referrer] = referrerFirstLevel;
 
         emit Register(msg.sender, _referrer);
     }
@@ -121,14 +120,14 @@ contract ACDMPlatform is Ownable {
         }
 
         /// If user has a referrer than transfer reward (1 level)
-        address firstLevel = _firstReferralLevel[msg.sender];
+        address firstLevel = _referrals[msg.sender];
         if (firstLevel != address(0)) {
             uint32 referralConfig_ = _referralConfig;
             uint256 referralValue = buyerValue * (referralConfig_ >> 16) / 1000;
             payable(firstLevel).transfer(referralValue); /// Transfer
 
             /// If user's referrer has a referrer then transfer reward (2 level)
-            address secondLevel = _secondReferralLevel[msg.sender];
+            address secondLevel = _referrals[firstLevel];
             if(secondLevel != address(0)) {
                 referralValue = buyerValue * (referralConfig_ & uint32(type(uint16).max)) / 1000;
                 payable(secondLevel).transfer(referralValue); /// Transfer
@@ -212,13 +211,13 @@ contract ACDMPlatform is Ownable {
         totalTradingSum = totalTradingSum + totalPrice; /// Summation
 
         // Transfer to referrals even if reward equals 0
-        address firstLevel = _firstReferralLevel[order.seller];
+        address firstLevel = _referrals[order.seller];
         if(firstLevel != address(0)) {
             uint256 referralValue = totalPrice * rewardReferralsRedeemOrder / 1000;
             totalPrice -= referralValue;
             payable(firstLevel).transfer(referralValue);
 
-            address secondLevel = _secondReferralLevel[order.seller];
+            address secondLevel = _referrals[firstLevel];
             if(secondLevel != address(0)) {
                 totalPrice -= referralValue;
                 payable(secondLevel).transfer(referralValue);

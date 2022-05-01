@@ -578,24 +578,6 @@ describe("ACDMPlatform Contract", function () {
       const tokenBalance = await token.balanceOf(addr1.address);
       expect(tokenBalance).to.be.eq(amountTokensForSale);
     });
-    it("order seller should get ETH", async () => {
-      const value = totalSumForAllTokens;
-
-      await platform.startSaleRound();
-      await platform.buyACDM({ value });
-
-      await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
-      await platform.addOrder(amountTokensForSale, 1);
-
-      const beforeBalance = await owner.getBalance();
-      await platform
-        .connect(addr1)
-        .redeemOrder(1, { value: amountTokensForSale });
-      const afterBalance = await owner.getBalance();
-
-      expect(afterBalance).to.be.eq(beforeBalance.add(amountTokensForSale));
-    });
     it("should return excess ETH to buyer", async () => {
       let value = totalSumForAllTokens;
 
@@ -667,7 +649,7 @@ describe("ACDMPlatform Contract", function () {
       const percent = await platform.rewardReferralsRedeemOrder();
       const reward = amountTokensForSale.mul(percent).div(1000);
 
-      await platform.register(addr2.address);
+      await platform.connect(addr1).register(addr2.address);
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
@@ -690,7 +672,7 @@ describe("ACDMPlatform Contract", function () {
       const reward = amountTokensForSale.mul(percent).div(1000);
 
       await platform.connect(addr2).register(addr1.address);
-      await platform.register(addr2.address);
+      await platform.connect(addr3).register(addr2.address);
 
       await platform.startSaleRound();
       await platform.buyACDM({ value });
@@ -772,6 +754,135 @@ describe("ACDMPlatform Contract", function () {
       const tx = platform.redeemOrder(2);
       const reason = "Value should be positive";
       await expect(tx).to.be.revertedWith(reason);
+    });
+    it("seller should get 95% if buyer has no referrals", async () => {
+      const value = totalSumForAllTokens;
+      const reward = amountTokensForSale.mul(95).div(100)
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await owner.getBalance();
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: amountTokensForSale });
+      const afterBalance = await owner.getBalance();
+
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(reward);
+    });
+    it("seller should get 95% if buyer is at first referral level", async () => {
+      const seller = owner
+      const buyer = addr1
+
+      const value = totalSumForAllTokens;
+      const percent = 95;
+
+      await platform.connect(buyer).register(addr2.address);
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await seller.getBalance()
+      await platform.connect(buyer).redeemOrder(1, {value: amountTokensForSale})
+      const afterBalance = await seller.getBalance()
+
+      const reward = amountTokensForSale.mul(percent).div(100)
+
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(reward)
+    });
+    it("seller should get 95% if buyer is at second referral level", async () => {
+      const seller = owner
+      const buyer = addr1
+
+      const value = totalSumForAllTokens;
+      const percent = 95;
+
+      await platform.connect(addr2).register(addr3.address);
+      await platform.connect(buyer).register(addr2.address);
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await seller.getBalance()
+      await platform.connect(buyer).redeemOrder(1, {value: amountTokensForSale})
+      const afterBalance = await seller.getBalance()
+
+      const reward = amountTokensForSale.mul(percent).div(100)
+
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(reward)
+    });
+    it("platform should get 5% if buyer has no referrals", async () => {
+      const value = totalSumForAllTokens;
+      const reward = amountTokensForSale.mul(5).div(100)
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await platform.provider.getBalance(platform.address);
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: amountTokensForSale });
+      const afterBalance = await platform.provider.getBalance(platform.address);
+
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(reward);
+    });
+    it("platform should get 2.5% if buyer is at first referral level", async () => {
+      const value = totalSumForAllTokens;
+      const reward = amountTokensForSale.mul(25).div(1000)
+
+      await platform.connect(addr1).register(addr2.address)
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await platform.provider.getBalance(platform.address);
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: amountTokensForSale });
+      const afterBalance = await platform.provider.getBalance(platform.address);
+
+      expect(afterBalance.sub(beforeBalance)).to.be.eq(reward);
+    });
+    it("platform should get nothing if buyer is at second referral level", async () => {
+      const value = totalSumForAllTokens;
+
+      await platform.connect(addr2).register(addr3.address)
+      await platform.connect(addr1).register(addr2.address)
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const beforeBalance = await platform.provider.getBalance(platform.address);
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: amountTokensForSale });
+      const afterBalance = await platform.provider.getBalance(platform.address);
+
+      expect(afterBalance).to.be.eq(beforeBalance);
     });
   });
   describe("removeOrder", () => {

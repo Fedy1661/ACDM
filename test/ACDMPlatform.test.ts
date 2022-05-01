@@ -101,16 +101,15 @@ describe("ACDMPlatform Contract", function () {
   });
   describe("buyACDM", () => {
     it("user should buy ACDMTokens buy on a fixed price from platform for ETH", async () => {
-      await platform.startSaleRound()
+      await platform.startSaleRound();
 
-      const amount = 5
-      const ETH = 0.00001 * amount
-      const value = ethers.utils.parseEther(ETH.toString())
-      await platform.buyACDM({value})
+      const amount = 5;
+      const ETH = 0.00001 * amount;
+      const value = ethers.utils.parseEther(ETH.toString());
+      await platform.buyACDM({ value });
 
-      const tokenBalance = await token.balanceOf(owner.address)
-      expect(tokenBalance).to.be.eq(amount)
-
+      const tokenBalance = await token.balanceOf(owner.address);
+      expect(tokenBalance).to.be.eq(amount);
     });
     it("should return excess ETH to buyer", async () => {
       const value = totalSumForAllTokens.mul(2);
@@ -147,7 +146,8 @@ describe("ACDMPlatform Contract", function () {
     });
     it("first referral level should receive percent", async () => {
       const value = totalSumForAllTokens.div(2);
-      const [rewardFirstReferralLevel] = await platform.getReferralRewardBuyACDM();
+      const [rewardFirstReferralLevel] =
+        await platform.getReferralRewardBuyACDM();
       const reward = value.mul(rewardFirstReferralLevel).div(1000);
 
       await platform.connect(addr2).register(addr1.address);
@@ -162,7 +162,8 @@ describe("ACDMPlatform Contract", function () {
     });
     it("second referral level should receive percent", async () => {
       const value = totalSumForAllTokens;
-      const [_, rewardSecondReferralLevel] = await platform.getReferralRewardBuyACDM();
+      const [_, rewardSecondReferralLevel] =
+        await platform.getReferralRewardBuyACDM();
       const reward = value.mul(rewardSecondReferralLevel).div(1000);
 
       // addr1
@@ -425,7 +426,7 @@ describe("ACDMPlatform Contract", function () {
       await token.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
-      const halfAmountTokensForSale = amountTokensForSale.div(2)
+      const halfAmountTokensForSale = amountTokensForSale.div(2);
       await platform
         .connect(addr1)
         .redeemOrder(1, { value: halfAmountTokensForSale });
@@ -433,15 +434,19 @@ describe("ACDMPlatform Contract", function () {
         .connect(addr2)
         .redeemOrder(1, { value: halfAmountTokensForSale });
 
-      await token.connect(addr1).approve(platform.address, halfAmountTokensForSale)
-      await token.connect(addr2).approve(platform.address, halfAmountTokensForSale)
+      await token
+        .connect(addr1)
+        .approve(platform.address, halfAmountTokensForSale);
+      await token
+        .connect(addr2)
+        .approve(platform.address, halfAmountTokensForSale);
       await platform.connect(addr1).addOrder(halfAmountTokensForSale, 10);
       await platform.connect(addr2).addOrder(halfAmountTokensForSale, 100);
-      await platform.redeemOrder(2, {value: value.mul(10)})
-      await platform.redeemOrder(3, {value: value.mul(100)})
+      await platform.redeemOrder(2, { value: value.mul(10) });
+      await platform.redeemOrder(3, { value: value.mul(100) });
 
-      const tokenBalance = await token.balanceOf(owner.address)
-      expect(tokenBalance).to.be.eq(amountTokensForSale)
+      const tokenBalance = await token.balanceOf(owner.address);
+      expect(tokenBalance).to.be.eq(amountTokensForSale);
     });
     it("should buy a part of the order", async () => {
       const value = totalSumForAllTokens;
@@ -461,7 +466,7 @@ describe("ACDMPlatform Contract", function () {
         .redeemOrder(1, { value: amountTokensForSale.div(2) });
 
       const tokenBalance = await token.balanceOf(addr1.address);
-      expect(tokenBalance).to.be.eq(amountTokensForSale)
+      expect(tokenBalance).to.be.eq(amountTokensForSale);
     });
     it("order seller should get ETH", async () => {
       const value = totalSumForAllTokens;
@@ -606,7 +611,7 @@ describe("ACDMPlatform Contract", function () {
       const tx = await platform
         .connect(addr1)
         .redeemOrder(1, { value: amountTokensForSale.mul(2) });
-      const transactionFee = await getTransactionFee(tx)
+      const transactionFee = await getTransactionFee(tx);
       const afterBalance = await addr1.getBalance();
 
       await expect(
@@ -727,26 +732,26 @@ describe("ACDMPlatform Contract", function () {
   describe("setReferralRewardBuyACDM", () => {
     it("should set new percents", async () => {
       await platform.setReferralRewardBuyACDM(100, 100);
-      const [first, second] = await platform.getReferralRewardBuyACDM()
-      expect(first).to.be.equal(100)
-      expect(second).to.be.equal(100)
+      const [first, second] = await platform.getReferralRewardBuyACDM();
+      expect(first).to.be.equal(100);
+      expect(second).to.be.equal(100);
     });
     it("should revert if first level percent plus second level percent greater than 100", async () => {
       const tx = platform.setReferralRewardBuyACDM(500, 501);
       const reason = "Incorrect percent";
-      await expect(tx).to.be.revertedWith(reason)
+      await expect(tx).to.be.revertedWith(reason);
     });
   });
   describe("setReferralRewardRedeemOrder", () => {
     it("should set new percent", async () => {
       await platform.setReferralRewardRedeemOrder(300);
-      const percent = await platform.rewardReferralsRedeemOrder()
-      await expect(percent).to.be.equal(300)
+      const percent = await platform.rewardReferralsRedeemOrder();
+      await expect(percent).to.be.equal(300);
     });
     it("should revert if percent greater than 50", async () => {
       const tx = platform.setReferralRewardRedeemOrder(1001);
       const reason = "Incorrect percent";
-      await expect(tx).to.be.revertedWith(reason)
+      await expect(tx).to.be.revertedWith(reason);
     });
   });
   describe("Events", () => {});

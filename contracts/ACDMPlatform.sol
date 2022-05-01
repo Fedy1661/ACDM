@@ -25,8 +25,8 @@ contract ACDMPlatform is Ownable {
     uint256 public tradeRoundFinishAt; /// Timestamp when the trade round will be finished
 
     /// First level - 5%, Second Level - 3%
-    uint32 private _referralConfig = 3276830; /// Contains 50 30
-    uint16 public rewardReferralsRedeemOrder = 25; /// Percentage that referrals will receive in the redeem order function
+    uint256 private _referralConfig = 17014118346046923173168730371588410572830; /// Contains 50 30
+    uint256 public rewardReferralsRedeemOrder = 25; /// Percentage that referrals will receive in the redeem order function
 
     struct Order {
         address seller; /// Seller's address
@@ -122,14 +122,14 @@ contract ACDMPlatform is Ownable {
         /// If user has a referrer than transfer reward (1 level)
         address referrer = _referrals[msg.sender];
         if (referrer != address(0)) {
-            uint32 referralConfig_ = _referralConfig;
-            uint256 referralValue = buyerValue * (referralConfig_ >> 16) / 1000;
+            uint256 referralConfig_ = _referralConfig;
+            uint256 referralValue = buyerValue * (referralConfig_ >> 128) / 1000;
             payable(referrer).transfer(referralValue); /// Transfer
 
             /// If user's referrer has a referrer then transfer reward (2 level)
             referrer = _referrals[referrer];
             if(referrer != address(0)) {
-                referralValue = buyerValue * (referralConfig_ & uint32(type(uint16).max)) / 1000;
+                referralValue = buyerValue * (referralConfig_ & uint256(type(uint128).max)) / 1000;
                 payable(referrer).transfer(referralValue); /// Transfer
             }
         }
@@ -201,7 +201,7 @@ contract ACDMPlatform is Ownable {
         /// if amount tokens more than tokens in order, then assign leftover to amount tokens
         if (amountTokens > order.amount) amountTokens = order.amount;
 
-        uint16 rewardReferralsRedeemOrder_ = rewardReferralsRedeemOrder;
+        uint256 rewardReferralsRedeemOrder_ = rewardReferralsRedeemOrder;
         uint256 totalPrice = amountTokens * order.price; /// Counting deal price
         uint256 excessValue = msg.value - totalPrice; /// Counting excess value
         /// excess value exists then transfer it back
@@ -248,10 +248,10 @@ contract ACDMPlatform is Ownable {
     * @return firstLevel First referral level percent
     * @return secondLevel Second referral level percent
     */
-    function getReferralRewardBuyACDM() public view returns(uint32 firstLevel, uint32 secondLevel) {
-        uint32 config = _referralConfig;
-        firstLevel = config >> 16;
-        secondLevel = config & uint32(type(uint16).max);
+    function getReferralRewardBuyACDM() public view returns(uint256 firstLevel, uint256 secondLevel) {
+        uint256 config = _referralConfig;
+        firstLevel = config >> 128;
+        secondLevel = config & uint256(type(uint128).max);
     }
 
     /**
@@ -261,9 +261,9 @@ contract ACDMPlatform is Ownable {
     * @param _firstLevel First level percent
     * @param _secondLevel Second level percent
     */
-    function setReferralRewardBuyACDM(uint32 _firstLevel, uint32 _secondLevel) external onlyOwner {
+    function setReferralRewardBuyACDM(uint256 _firstLevel, uint256 _secondLevel) external onlyOwner {
         require(_firstLevel + _secondLevel < 1001, "Incorrect percent");
-        _referralConfig = (_firstLevel << 16) + _secondLevel;
+        _referralConfig = (_firstLevel << 128) + _secondLevel;
     }
 
     /**
@@ -272,7 +272,7 @@ contract ACDMPlatform is Ownable {
     * Can by called by the owner
     * @param _percent Percent to first, second levels
     */
-    function setReferralRewardRedeemOrder(uint16 _percent) external onlyOwner {
+    function setReferralRewardRedeemOrder(uint256 _percent) external onlyOwner {
         require(_percent < 501, "Incorrect percent");
         rewardReferralsRedeemOrder = _percent;
     }

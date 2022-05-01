@@ -60,7 +60,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.startSaleRound();
       await expect(await platform.amountTokensForSale()).to.be.eq(100000);
     });
-    it("amount of tokens for sale should be decreased", async () => {
+    it("should be decreased", async () => {
       const value = totalSumForAllTokens;
       await platform.startSaleRound();
       await platform.buyACDM({ value });
@@ -69,6 +69,30 @@ describe("ACDMPlatform Contract", function () {
       await increaseTime(roundTime);
 
       await expect(await platform.amountTokensForSale()).to.be.eq(0);
+    });
+    it("should depend on the total amount of trades", async () => {
+      let value = totalSumForAllTokens;
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      const ethPerToken = initialEthPerToken
+        .mul(103)
+        .div(100)
+        .add(4000000000000);
+      value = amountTokensForSale.mul(ethPerToken).mul(2);
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, value);
+      await platform.connect(addr1).redeemOrder(1, { value });
+
+      await increaseTime(roundTime);
+
+      await platform.startSaleRound();
+
+      await expect(await platform.amountTokensForSale()).to.be.eq(
+        amountTokensForSale.mul(2)
+      );
     });
   });
   describe("ethPerToken", () => {

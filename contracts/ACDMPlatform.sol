@@ -261,7 +261,7 @@ contract ACDMPlatform is Ownable {
     * @param _firstLevel First level percent
     * @param _secondLevel Second level percent
     */
-    function setReferralRewardBuyACDM(uint16 _firstLevel, uint16 _secondLevel) external onlyOwner {
+    function setReferralRewardBuyACDM(uint32 _firstLevel, uint32 _secondLevel) external onlyOwner {
         require(_firstLevel + _secondLevel < 1001, "Incorrect percent");
         _referralConfig = (_firstLevel << 16) + _secondLevel;
     }

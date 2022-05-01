@@ -55,25 +55,6 @@ describe("ACDMPlatform Contract", function () {
     clean = await network.provider.send("evm_snapshot");
   });
 
-  it("should revert if msg.value lower than price per token", async () => {
-    await platform.startSaleRound();
-    const tx = platform.buyACDM({ value: 1 });
-    const reason = "Not enough ETH";
-    await expect(tx).to.be.revertedWith(reason);
-  });
-  it("should revert if msg.value lower than order price", async () => {
-    const value = totalSumForAllTokens;
-    await platform.startSaleRound();
-    await platform.buyACDM({ value });
-    await platform.startTradeRound();
-    await token.approve(platform.address, amountTokensForSale);
-    await platform.addOrder(amountTokensForSale, totalSumForAllTokens);
-
-    const tx = platform.redeemOrder(1, { value: 1 });
-    const reason = "Not enough ETH";
-    await expect(tx).to.be.revertedWith(reason);
-  });
-
   describe("AmountTokensForSale", () => {
     it("the initial value should be 100000", async () => {
       await platform.startSaleRound();
@@ -108,28 +89,6 @@ describe("ACDMPlatform Contract", function () {
       const ethPerToken = await platform.ethPerToken();
       await expect(ethPerToken).to.be.eq(ethers.utils.parseEther("0.00001"));
     });
-  });
-  it("should revert if after sales round start sales round", async () => {
-    await platform.startSaleRound();
-
-    await increaseTime(roundTime);
-
-    const tx = platform.startSaleRound();
-    const reason = "Sales round is already active";
-    await expect(tx).to.be.revertedWith(reason);
-  });
-  it("should revert if after trade round start trade round", async () => {
-    await platform.startSaleRound();
-
-    await increaseTime(roundTime);
-
-    await platform.startTradeRound();
-
-    await increaseTime(roundTime);
-
-    const tx = platform.startTradeRound();
-    const reason = "Trade round is already active";
-    await expect(tx).to.be.revertedWith(reason);
   });
   describe("register", () => {
     it("should revert if user has already registered", async () => {
@@ -238,6 +197,13 @@ describe("ACDMPlatform Contract", function () {
       const balance = await token.balanceOf(owner.address);
       expect(balance).to.be.equal(amountTokensForSale);
     });
+    it("should revert if msg.value lower than price per token", async () => {
+      await platform.startSaleRound();
+
+      const tx = platform.buyACDM({ value: 1 });
+      const reason = "Not enough ETH";
+      await expect(tx).to.be.revertedWith(reason);
+    });
     it("platform should get 100% if buyer has no referrals", async () => {
       const value = totalSumForAllTokens;
 
@@ -283,33 +249,6 @@ describe("ACDMPlatform Contract", function () {
       );
     });
   });
-  it("should revert if start trade round at first", async () => {
-    const tx = platform.startTradeRound();
-    const reason = "Sales round never started";
-    await expect(tx).to.be.revertedWith(reason);
-  });
-  it("should revert if sales round is not over", async () => {
-    await platform.startSaleRound();
-    const tx = platform.startTradeRound();
-    const reason = "Sales round is active";
-    await expect(tx).to.be.revertedWith(reason);
-  });
-  it("should revert if sales round is already active", async () => {
-    await platform.startSaleRound();
-    const tx = platform.startSaleRound();
-    const reason = "Sales round is already active";
-    await expect(tx).to.be.revertedWith(reason);
-  });
-  it("should revert if trade round is not over", async () => {
-    await platform.startSaleRound();
-
-    await increaseTime(roundTime);
-
-    await platform.startTradeRound();
-    const tx = platform.startSaleRound();
-    const reason = "Trade round is active";
-    await expect(tx).to.be.revertedWith(reason);
-  });
   describe("startTradeRound", () => {
     it("trade round should be completed after 3 days", async () => {
       await platform.startSaleRound();
@@ -321,6 +260,30 @@ describe("ACDMPlatform Contract", function () {
 
       const tx = platform.startSaleRound();
       await expect(tx).not.to.be.reverted;
+    });
+    it("should revert if start trade round at first", async () => {
+      const tx = platform.startTradeRound();
+      const reason = "Sales round never started";
+      await expect(tx).to.be.revertedWith(reason);
+    });
+    it("should revert if sales round is not over", async () => {
+      await platform.startSaleRound();
+      const tx = platform.startTradeRound();
+      const reason = "Sales round is active";
+      await expect(tx).to.be.revertedWith(reason);
+    });
+    it("should revert if after trade round start trade round", async () => {
+      await platform.startSaleRound();
+
+      await increaseTime(roundTime);
+
+      await platform.startTradeRound();
+
+      await increaseTime(roundTime);
+
+      const tx = platform.startTradeRound();
+      const reason = "Trade round is already active";
+      await expect(tx).to.be.revertedWith(reason);
     });
   });
   describe("startSaleRound", () => {
@@ -338,33 +301,31 @@ describe("ACDMPlatform Contract", function () {
 
       expect(afterethPerToken).to.be.gt(beforeethPerToken);
     });
-  });
-  it("should debit tokens from the seller", async () => {
-    const value = totalSumForAllTokens;
-    await platform.startSaleRound();
-    await platform.buyACDM({ value });
-    await platform.startTradeRound();
+    it("should revert if trade round is not over", async () => {
+      await platform.startSaleRound();
 
-    await token.approve(platform.address, amountTokensForSale);
+      await increaseTime(roundTime);
 
-    await platform.addOrder(amountTokensForSale, 1);
-    const balance = await token.balanceOf(owner.address);
-    expect(balance).to.be.eq(0);
-  });
-  it("buyer must receive tokens", async () => {
-    const value = totalSumForAllTokens;
-    await platform.startSaleRound();
-    await platform.buyACDM({ value });
-    await platform.startTradeRound();
+      await platform.startTradeRound();
+      const tx = platform.startSaleRound();
+      const reason = "Trade round is active";
+      await expect(tx).to.be.revertedWith(reason);
+    });
+    it("should revert if sales round is already active", async () => {
+      await platform.startSaleRound();
+      const tx = platform.startSaleRound();
+      const reason = "Sales round is already active";
+      await expect(tx).to.be.revertedWith(reason);
+    });
+    it("should revert if after sales round start sales round", async () => {
+      await platform.startSaleRound();
 
-    await token.approve(platform.address, amountTokensForSale);
+      await increaseTime(roundTime);
 
-    await platform.addOrder(amountTokensForSale, 1);
-    await platform
-      .connect(addr1)
-      .redeemOrder(1, { value: amountTokensForSale });
-    const balance = await token.balanceOf(addr1.address);
-    expect(balance).to.be.eq(amountTokensForSale);
+      const tx = platform.startSaleRound();
+      const reason = "Sales round is already active";
+      await expect(tx).to.be.revertedWith(reason);
+    });
   });
   describe("addOrder", () => {
     it("should create several orders", async () => {
@@ -394,6 +355,18 @@ describe("ACDMPlatform Contract", function () {
       const tx = platform.addOrder(amountTokensForSale, 1);
       const reason = "Trade round is not active";
       await expect(tx).to.be.revertedWith(reason);
+    });
+    it("should debit tokens from the seller", async () => {
+      const value = totalSumForAllTokens;
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+      await platform.startTradeRound();
+
+      await token.approve(platform.address, amountTokensForSale);
+
+      await platform.addOrder(amountTokensForSale, 1);
+      const balance = await token.balanceOf(owner.address);
+      expect(balance).to.be.eq(0);
     });
     it("should revert if amount is not positive", async () => {
       const value = totalSumForAllTokens;
@@ -559,6 +532,21 @@ describe("ACDMPlatform Contract", function () {
         value
       );
     });
+    it("buyer should receive tokens", async () => {
+      const value = totalSumForAllTokens;
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+      await platform.startTradeRound();
+
+      await token.approve(platform.address, amountTokensForSale);
+
+      await platform.addOrder(amountTokensForSale, 1);
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: amountTokensForSale });
+      const balance = await token.balanceOf(addr1.address);
+      expect(balance).to.be.eq(amountTokensForSale);
+    });
     it("should transfer percent to first referral level", async () => {
       const value = totalSumForAllTokens;
       const percent = await platform.rewardReferralsRedeemOrder();
@@ -624,6 +612,18 @@ describe("ACDMPlatform Contract", function () {
       await expect(
         beforeBalance.sub(transactionFee).sub(afterBalance)
       ).to.be.eq(amountTokensForSale);
+    });
+    it("should revert if msg.value lower than order price", async () => {
+      const value = totalSumForAllTokens;
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, totalSumForAllTokens);
+
+      const tx = platform.redeemOrder(1, { value: 1 });
+      const reason = "Not enough ETH";
+      await expect(tx).to.be.revertedWith(reason);
     });
     it("should revert if order does not exist", async () => {
       const value = totalSumForAllTokens;

@@ -3,15 +3,13 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "./IERC20Mintable.sol";
 
 contract ACDMPlatform is Ownable {
     using SafeERC20 for IERC20Mintable;
-    using Counters for Counters.Counter;
 
     IERC20Mintable public ACDMToken;
-    Counters.Counter private _orderCounter;
+    uint256 private _orderCounter; /// ID for a new order
 
     /// The time after which you can complete the round
     uint256 public roundTime; /// Has setter setRoundTime()
@@ -177,9 +175,7 @@ contract ACDMPlatform is Ownable {
         require(_amount > 0, "Amount should be positive");
         require(_pricePerToken > 0, "Price should be positive");
 
-        _orderCounter.increment(); /// Increment Order ID
-
-        uint256 orderId = _orderCounter.current(); /// Receive ID for this order
+        uint256 orderId = ++_orderCounter; /// Increment Order ID
         _orders[orderId] = Order(msg.sender, _pricePerToken, _amount); /// Add order to storage
 
         ACDMToken.safeTransferFrom(msg.sender, address(this), _amount); /// Take tokens from the user for safekeeping

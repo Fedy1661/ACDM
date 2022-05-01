@@ -157,7 +157,8 @@ contract ACDMPlatform is Ownable {
 
         uint256 _tradeRoundFinishAt = block.timestamp + roundTime; /// Counting round's end
         tradeRoundFinishAt = _tradeRoundFinishAt;
-        ethPerToken = ethPerToken * 103 / 100 + 4000000000000; /// Counting price for next sales round
+        /// Counting price for next sales round
+        ethPerToken = (ethPerToken * 103 / 100 + 4050000000000) / 100000000000 * 100000000000;
 
         /// Reset total trading sum and finish timestamp for sales round
         delete totalTradingSum;

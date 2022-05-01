@@ -201,6 +201,7 @@ contract ACDMPlatform is Ownable {
         /// if amount tokens more than tokens in order, then assign leftover to amount tokens
         if (amountTokens > order.amount) amountTokens = order.amount;
 
+        uint16 rewardReferralsRedeemOrder_ = rewardReferralsRedeemOrder;
         uint256 totalPrice = amountTokens * order.price; /// Counting deal price
         uint256 excessValue = msg.value - totalPrice; /// Counting excess value
         /// excess value exists then transfer it back
@@ -211,18 +212,17 @@ contract ACDMPlatform is Ownable {
         totalTradingSum = totalTradingSum + totalPrice; /// Summation
 
         // Transfer to referrals even if reward equals 0
-        address referrer = _referrals[order.seller];
+        address referrer = _referrals[msg.sender];
         if(referrer != address(0)) {
-            uint256 referralValue = totalPrice * rewardReferralsRedeemOrder / 1000;
-            totalPrice -= referralValue;
+            uint256 referralValue = totalPrice * rewardReferralsRedeemOrder_ / 1000;
             payable(referrer).transfer(referralValue);
 
             referrer = _referrals[referrer];
             if(referrer != address(0)) {
-                totalPrice -= referralValue;
                 payable(referrer).transfer(referralValue);
             }
         }
+        totalPrice = totalPrice * (1000 - rewardReferralsRedeemOrder_ * 2) / 1000;
 
         payable(order.seller).transfer(totalPrice); /// Transfer even 0 ETH
         ACDMToken.safeTransfer(msg.sender, amountTokens); /// Transfer tokens

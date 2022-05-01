@@ -442,6 +442,34 @@ describe("ACDMPlatform Contract", function () {
     });
   });
   describe("redeemOrder", () => {
+    it("should buy ACDMTokens from each other for ETH", async () => {
+      const value = totalSumForAllTokens;
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+
+      await platform.startTradeRound();
+      await token.approve(platform.address, amountTokensForSale);
+      await platform.addOrder(amountTokensForSale, 1);
+
+      const halfAmountTokensForSale = amountTokensForSale.div(2)
+      await platform
+        .connect(addr1)
+        .redeemOrder(1, { value: halfAmountTokensForSale });
+      await platform
+        .connect(addr2)
+        .redeemOrder(1, { value: halfAmountTokensForSale });
+
+      await token.connect(addr1).approve(platform.address, halfAmountTokensForSale)
+      await token.connect(addr2).approve(platform.address, halfAmountTokensForSale)
+      await platform.connect(addr1).addOrder(halfAmountTokensForSale, 10);
+      await platform.connect(addr2).addOrder(halfAmountTokensForSale, 100);
+      await platform.redeemOrder(2, {value: value.mul(10)})
+      await platform.redeemOrder(3, {value: value.mul(100)})
+
+      const tokenBalance = await token.balanceOf(owner.address)
+      expect(tokenBalance).to.be.eq(amountTokensForSale)
+    });
     it("should buy a part of the order", async () => {
       const value = totalSumForAllTokens;
 

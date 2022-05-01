@@ -210,7 +210,7 @@ describe("ACDMPlatform Contract", function () {
     });
   });
   describe("buyACDM", () => {
-    it("user should buy ACDMTokens buy on a fixed price from platform for ETH", async () => {
+    it("should buy ACDMTokens buy on a fixed price from platform for ETH", async () => {
       await platform.startSaleRound();
 
       const amount = 5;

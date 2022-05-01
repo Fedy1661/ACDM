@@ -34,9 +34,9 @@ contract ACDMPlatform is Ownable {
         uint256 amount; /// Amount tokens
     }
 
-    mapping(address => address) public _firstReferralLevel; /// 1 level. referral => referrer
-    mapping(address => address) public _secondReferralLevel; /// 2 level. referral => referrer
-    mapping(uint256 => Order) public _orders; /// Contains orders. orderID => Order
+    mapping(address => address) private _firstReferralLevel; /// 1 level. referral => referrer
+    mapping(address => address) private _secondReferralLevel; /// 2 level. referral => referrer
+    mapping(uint256 => Order) private _orders; /// Contains orders. orderID => Order
 
     event NewOrder(uint256 indexed orderId, address indexed seller, uint256 amount, uint256 pricePerToken);
     event RedeemOrder(address indexed buyer, address indexed seller, uint256 amount);

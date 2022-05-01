@@ -176,7 +176,10 @@ contract ACDMPlatform is Ownable {
         require(_pricePerToken > 0, "Price should be positive");
 
         uint256 orderId = ++_orderCounter; /// Increment Order ID
-        _orders[orderId] = Order(msg.sender, _pricePerToken, _amount); /// Add order to storage
+        Order storage order = _orders[orderId];
+        order.seller = msg.sender;
+        order.price = _pricePerToken;
+        order.amount = _amount;
 
         ACDMToken.safeTransferFrom(msg.sender, address(this), _amount); /// Take tokens from the user for safekeeping
         emit NewOrder(orderId, msg.sender, _amount, _pricePerToken);

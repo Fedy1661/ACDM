@@ -141,6 +141,18 @@ describe("ACDMPlatform Contract", function () {
     });
   });
   describe("buyACDM", () => {
+    it("user should buy ACDMTokens buy on a fixed price from platform for ETH", async () => {
+      await platform.startSaleRound()
+
+      const amount = 5
+      const ETH = 0.00001 * amount
+      const value = ethers.utils.parseEther(ETH.toString())
+      await platform.buyACDM({value})
+
+      const tokenBalance = await token.balanceOf(owner.address)
+      expect(tokenBalance).to.be.eq(amount)
+
+    });
     it("should return excess ETH to buyer", async () => {
       const value = totalSumForAllTokens.mul(2);
 

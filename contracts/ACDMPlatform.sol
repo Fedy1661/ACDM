@@ -120,17 +120,17 @@ contract ACDMPlatform is Ownable {
         }
 
         /// If user has a referrer than transfer reward (1 level)
-        address firstLevel = _referrals[msg.sender];
-        if (firstLevel != address(0)) {
+        address referrer = _referrals[msg.sender];
+        if (referrer != address(0)) {
             uint32 referralConfig_ = _referralConfig;
             uint256 referralValue = buyerValue * (referralConfig_ >> 16) / 1000;
-            payable(firstLevel).transfer(referralValue); /// Transfer
+            payable(referrer).transfer(referralValue); /// Transfer
 
             /// If user's referrer has a referrer then transfer reward (2 level)
-            address secondLevel = _referrals[firstLevel];
-            if(secondLevel != address(0)) {
+            referrer = _referrals[referrer];
+            if(referrer != address(0)) {
                 referralValue = buyerValue * (referralConfig_ & uint32(type(uint16).max)) / 1000;
-                payable(secondLevel).transfer(referralValue); /// Transfer
+                payable(referrer).transfer(referralValue); /// Transfer
             }
         }
 
@@ -211,16 +211,16 @@ contract ACDMPlatform is Ownable {
         totalTradingSum = totalTradingSum + totalPrice; /// Summation
 
         // Transfer to referrals even if reward equals 0
-        address firstLevel = _referrals[order.seller];
-        if(firstLevel != address(0)) {
+        address referrer = _referrals[order.seller];
+        if(referrer != address(0)) {
             uint256 referralValue = totalPrice * rewardReferralsRedeemOrder / 1000;
             totalPrice -= referralValue;
-            payable(firstLevel).transfer(referralValue);
+            payable(referrer).transfer(referralValue);
 
-            address secondLevel = _referrals[firstLevel];
-            if(secondLevel != address(0)) {
+            referrer = _referrals[referrer];
+            if(referrer != address(0)) {
                 totalPrice -= referralValue;
-                payable(secondLevel).transfer(referralValue);
+                payable(referrer).transfer(referralValue);
             }
         }
 

@@ -113,6 +113,92 @@ describe("ACDMPlatform Contract", function () {
       const ethPerToken = await platform.ethPerToken();
       await expect(ethPerToken).to.be.eq(ethers.utils.parseEther("0.00001"));
     });
+    it("should be 0.0000143 ETH at the second round", async () => {
+      const price = ethers.utils.parseEther("0.0000143")
+
+      const round = 2
+
+      for (let i = 0; i < round - 1; i++) {
+        await platform.startSaleRound();
+        await increaseTime(roundTime)
+        await platform.startTradeRound()
+        await increaseTime(roundTime)
+      }
+
+      await platform.startSaleRound()
+
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(price);
+    });
+    it("should be 0.0000187 ETH at the third round", async () => {
+      const price = ethers.utils.parseEther("0.0000187")
+
+      const round = 3
+
+      for (let i = 0; i < round - 1; i++) {
+        await platform.startSaleRound();
+        await increaseTime(roundTime)
+        await platform.startTradeRound()
+        await increaseTime(roundTime)
+      }
+
+      await platform.startSaleRound()
+
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(price);
+    });
+    it("should be 0.0000233 ETH at the fourth round", async () => {
+      const price = ethers.utils.parseEther("0.0000233")
+
+      const round = 4
+
+      for (let i = 0; i < round - 1; i++) {
+        await platform.startSaleRound();
+        await increaseTime(roundTime)
+        await platform.startTradeRound()
+        await increaseTime(roundTime)
+      }
+
+      await platform.startSaleRound()
+
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(price);
+    });
+    it("should be 0.0000280 ETH at the fifth round", async () => {
+      const price = ethers.utils.parseEther("0.0000280")
+
+      const round = 5
+
+      for (let i = 0; i < round - 1; i++) {
+        await platform.startSaleRound();
+        await increaseTime(roundTime)
+        await platform.startTradeRound()
+        await increaseTime(roundTime)
+      }
+
+      await platform.startSaleRound()
+
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(price);
+    });
+    it("should be 0.0000328 ETH at the sixth round", async () => {
+      const price = ethers.utils.parseEther("0.0000328")
+
+      const round = 6
+
+      for (let i = 0; i < round - 1; i++) {
+        await platform.startSaleRound();
+        await increaseTime(roundTime)
+        await platform.startTradeRound()
+        await increaseTime(roundTime)
+      }
+
+      await platform.startSaleRound()
+
+      const ethPerToken = await platform.ethPerToken();
+      await expect(ethPerToken).to.be.eq(price);
+    });
+
   });
   describe("register", () => {
     it("should revert if user has already registered", async () => {

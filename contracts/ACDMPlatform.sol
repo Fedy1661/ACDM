@@ -8,7 +8,7 @@ import "./IERC20Mintable.sol";
 contract ACDMPlatform is Ownable {
     using SafeERC20 for IERC20Mintable;
 
-    IERC20Mintable public ACDMToken;
+    IERC20Mintable public immutable ACDMToken;
     uint256 private _orderCounter; /// ID for a new order
 
     /// The time after which you can complete the round

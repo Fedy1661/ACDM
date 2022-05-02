@@ -1,8 +1,17 @@
 import { ethers, network } from "hardhat";
 import chai, { expect } from "chai";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/dist/src/signer-with-address";
-import { ACDMPlatform, ACDMPlatform__factory, Token } from "../typechain";
+import {
+  ACDMPlatform,
+  ACDMPlatform__factory,
+  DAO, DAO__factory,
+  Staking,
+  Staking__factory,
+  Token,
+  Token__factory
+} from "../typechain";
 import { BigNumber, ContractTransaction } from "ethers";
+import { StakingInterface } from "../typechain/Staking";
 
 chai.use(require("chai-bignumber")());
 
@@ -18,7 +27,12 @@ async function getTransactionFee(tx: ContractTransaction) {
 
 describe("ACDMPlatform Contract", function () {
   let platform: ACDMPlatform;
-  let token: Token;
+  let dao: DAO;
+  let ACDMToken: Token;
+  let XXXToken: Token;
+  let LPToken: Token;
+  let staking: Staking;
+  let iStaking: StakingInterface;
   let totalSumForAllTokens: BigNumber;
   let amountTokensForSale: BigNumber;
   let initialEthPerToken: BigNumber;
@@ -30,23 +44,36 @@ describe("ACDMPlatform Contract", function () {
   let clean: string;
 
   const roundTime = 60 * 60 * 24 * 3;
+  const debatingPeriodDuration = 60 * 60 * 24 * 3;
+  const freezeTime = 60 * 60 * 24 * 30;
+  const minimumQuorum = 100;
 
   before(async () => {
     [owner, addr1, addr2, addr3, addr4] = await ethers.getSigners();
-
-    const Token = await ethers.getContractFactory("Token");
-    token = await Token.deploy("ACADEM Coin", "ACDM", 6, "0");
-    const Platform: ACDMPlatform__factory = await ethers.getContractFactory(
+    const Token = <Token__factory>await ethers.getContractFactory("Token");
+    const Staking = <Staking__factory>await ethers.getContractFactory("Staking")
+    const DAO = <DAO__factory>await ethers.getContractFactory("DAO")
+    const Platform = <ACDMPlatform__factory>await ethers.getContractFactory(
       "ACDMPlatform"
     );
-    platform = await Platform.deploy(token.address, roundTime);
+
+    iStaking = <StakingInterface>Staking.interface;
+
+    ACDMToken = await Token.deploy("ACADEM Coin", "ACDM", 6, 0);
+    XXXToken = await Token.deploy("XXX Coin", "XXX", 18, ethers.utils.parseEther('100'));
+    LPToken = await Token.deploy("Uniswap V2", "UNI-V2", 18, ethers.utils.parseEther('100'));
+    platform = await Platform.deploy(ACDMToken.address, roundTime);
+    staking = await Staking.deploy(LPToken.address, XXXToken.address, freezeTime, 3)
+    dao = await DAO.deploy(owner.address, staking.address, minimumQuorum, debatingPeriodDuration);
+
+    await staking.transferOwnership(dao.address);
 
     const totalTradingSum = await platform.totalTradingSum();
     initialEthPerToken = await platform.ethPerToken();
     amountTokensForSale = totalTradingSum.div(initialEthPerToken);
     totalSumForAllTokens = amountTokensForSale.mul(initialEthPerToken);
 
-    await token.transferOwnership(platform.address);
+    await ACDMToken.transferOwnership(platform.address);
 
     clean = await network.provider.send("evm_snapshot");
   });
@@ -82,7 +109,7 @@ describe("ACDMPlatform Contract", function () {
       value = amountTokensForSale.mul(ethPerToken).mul(2);
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, value);
       await platform.connect(addr1).redeemOrder(1, { value });
 
@@ -218,7 +245,7 @@ describe("ACDMPlatform Contract", function () {
       const value = ethers.utils.parseEther(ETH.toString());
       await platform.buyACDM({ value });
 
-      const tokenBalance = await token.balanceOf(owner.address);
+      const tokenBalance = await ACDMToken.balanceOf(owner.address);
       expect(tokenBalance).to.be.eq(amount);
     });
     it("should return excess ETH to buyer", async () => {
@@ -305,7 +332,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.startSaleRound();
       await platform.buyACDM({ value });
 
-      const balance = await token.balanceOf(owner.address);
+      const balance = await ACDMToken.balanceOf(owner.address);
       expect(balance).to.be.equal(amountTokensForSale);
     });
     it("should revert if msg.value lower than price per token", async () => {
@@ -447,7 +474,7 @@ describe("ACDMPlatform Contract", function () {
 
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale.div(2), 1);
       const tx = platform.addOrder(amountTokensForSale.div(2), 1);
@@ -461,7 +488,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.startSaleRound();
       await platform.buyACDM({ value });
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(amountTokensForSale, 1);
       const reason = "Trade round is not active";
@@ -473,10 +500,10 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
-      const balance = await token.balanceOf(owner.address);
+      const balance = await ACDMToken.balanceOf(owner.address);
       expect(balance).to.be.eq(0);
     });
     it("should revert if amount is not positive", async () => {
@@ -488,7 +515,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(0, 1);
       const reason = "Amount should be positive";
@@ -503,7 +530,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(amountTokensForSale, 0);
       const reason = "Price should be positive";
@@ -518,7 +545,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       const tx = platform.addOrder(amountTokensForSale.mul(2), 1);
       const reason = "You can't transfer so tokens from this user";
@@ -533,7 +560,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const halfAmountTokensForSale = amountTokensForSale.div(2);
@@ -544,10 +571,10 @@ describe("ACDMPlatform Contract", function () {
         .connect(addr2)
         .redeemOrder(1, { value: halfAmountTokensForSale });
 
-      await token
+      await ACDMToken
         .connect(addr1)
         .approve(platform.address, halfAmountTokensForSale);
-      await token
+      await ACDMToken
         .connect(addr2)
         .approve(platform.address, halfAmountTokensForSale);
       await platform.connect(addr1).addOrder(halfAmountTokensForSale, 10);
@@ -555,7 +582,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.redeemOrder(2, { value: value.mul(10) });
       await platform.redeemOrder(3, { value: value.mul(100) });
 
-      const tokenBalance = await token.balanceOf(owner.address);
+      const tokenBalance = await ACDMToken.balanceOf(owner.address);
       expect(tokenBalance).to.be.eq(amountTokensForSale);
     });
     it("should buy a part of the order", async () => {
@@ -565,7 +592,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       await platform
@@ -575,7 +602,7 @@ describe("ACDMPlatform Contract", function () {
         .connect(addr1)
         .redeemOrder(1, { value: amountTokensForSale.div(2) });
 
-      const tokenBalance = await token.balanceOf(addr1.address);
+      const tokenBalance = await ACDMToken.balanceOf(addr1.address);
       expect(tokenBalance).to.be.eq(amountTokensForSale);
     });
     it("should return excess ETH to buyer", async () => {
@@ -585,7 +612,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       value = amountTokensForSale;
@@ -611,7 +638,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, pricePerToken);
 
       value = BigNumber.from(pricePerToken);
@@ -635,13 +662,13 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       await platform
         .connect(addr1)
         .redeemOrder(1, { value: amountTokensForSale });
-      const balance = await token.balanceOf(addr1.address);
+      const balance = await ACDMToken.balanceOf(addr1.address);
       expect(balance).to.be.eq(amountTokensForSale);
     });
     it("should transfer percent to first referral level", async () => {
@@ -655,7 +682,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       const beforeBalance = await addr2.getBalance();
@@ -678,7 +705,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       const beforeBalance = await addr1.getBalance();
@@ -696,7 +723,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       const beforeBalance = await addr1.getBalance();
@@ -715,7 +742,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.startSaleRound();
       await platform.buyACDM({ value });
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, totalSumForAllTokens);
 
       const tx = platform.redeemOrder(1, { value: 1 });
@@ -729,7 +756,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       const tx = platform.redeemOrder(2, { value: amountTokensForSale });
@@ -748,7 +775,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       const tx = platform.redeemOrder(2);
@@ -763,7 +790,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const beforeBalance = await owner.getBalance();
@@ -787,7 +814,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const beforeBalance = await seller.getBalance()
@@ -812,7 +839,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const beforeBalance = await seller.getBalance()
@@ -831,7 +858,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const beforeBalance = await platform.provider.getBalance(platform.address);
@@ -852,7 +879,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const beforeBalance = await platform.provider.getBalance(platform.address);
@@ -873,7 +900,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
 
       await platform.startTradeRound();
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
       await platform.addOrder(amountTokensForSale, 1);
 
       const beforeBalance = await platform.provider.getBalance(platform.address);
@@ -893,7 +920,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
 
@@ -910,7 +937,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
 
@@ -925,7 +952,7 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       await platform.removeOrder(1);
@@ -941,12 +968,12 @@ describe("ACDMPlatform Contract", function () {
       await platform.buyACDM({ value });
       await platform.startTradeRound();
 
-      await token.approve(platform.address, amountTokensForSale);
+      await ACDMToken.approve(platform.address, amountTokensForSale);
 
       await platform.addOrder(amountTokensForSale, 1);
       await platform.removeOrder(1);
 
-      const balance = await token.balanceOf(owner.address);
+      const balance = await ACDMToken.balanceOf(owner.address);
       expect(balance).to.be.eq(amountTokensForSale);
     });
   });
@@ -976,4 +1003,128 @@ describe("ACDMPlatform Contract", function () {
     });
   });
   describe("Events", () => {});
+
+  it("should get reward after 1 week", async () => {
+    const value = 100
+    const percent = await staking.percent()
+    const reward = BigNumber.from(100).mul(percent).div(100)
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(100)
+
+    await increaseTime(60 * 60 * 24 * 7)
+
+    await staking.connect(addr1).claim()
+    const balance = await XXXToken.balanceOf(addr1.address)
+    expect(balance).to.be.eq(reward)
+  });
+  it("can withdraw staked tokens after 30 days", async () => {
+    const value = 100
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(value)
+
+    await increaseTime(60 * 60 * 24 * 30)
+
+    await staking.connect(addr1).unstake()
+    const balance = await LPToken.balanceOf(addr1.address)
+    expect(balance).to.be.eq(value)
+  });
+  it("should revert if withdraw tokens earlier than 30 days", async () => {
+    const value = 100
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(value)
+
+    await increaseTime(60 * 60 * 24 * 29)
+
+    const tx = staking.connect(addr1).unstake()
+    const reason = 'Freezing time has not passed'
+    await expect(tx).to.be.revertedWith(reason)
+  });
+  it("may withdraw reward after receiving", async () => {
+    const value = 100
+    const percent = await staking.percent()
+    const reward = BigNumber.from(100).mul(percent).div(100)
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(value)
+
+    await increaseTime(60 * 60 * 24 * 7)
+
+    await staking.connect(addr1).claim()
+    const balance = await XXXToken.balanceOf(addr1.address)
+    expect(balance).to.be.eq(reward)
+  });
+
+  it("should revert if unstake tokens after vote", async () => {
+    const value = 100
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(value)
+
+    await increaseTime(60 * 60 * 24 * 30)
+
+    const callData = iStaking.encodeFunctionData('setPercent', [5]);
+    await dao.addProposal(callData, staking.address, 'Change percent');
+    await dao.connect(addr1).vote(1, true);
+    const tx = staking.connect(addr1).unstake()
+    const reason = 'You are in active voting'
+    await expect(tx).to.be.revertedWith(reason)
+  });
+  it("should return tokens after vote", async () => {
+    const value = 100
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(value)
+
+    await increaseTime(60 * 60 * 24 * 30)
+
+    const callData = iStaking.encodeFunctionData('setPercent', [5]);
+    await dao.addProposal(callData, staking.address, 'Change percent');
+    await dao.connect(addr1).vote(1, true);
+
+    await increaseTime(debatingPeriodDuration)
+
+    await staking.connect(addr1).unstake()
+    const balance = await LPToken.balanceOf(addr1.address)
+    expect(balance).to.be.eq(value)
+  });
+  it("should set freeze time by DAO", async () => {
+    const value = minimumQuorum
+    const percent = 55
+
+    await XXXToken.transfer(staking.address, 1000000)
+    await LPToken.transfer(addr1.address, value)
+    await LPToken.connect(addr1).approve(staking.address, value)
+    await staking.connect(addr1).stake(value)
+
+    await increaseTime(60 * 60 * 24 * 30)
+
+    const callData = iStaking.encodeFunctionData('setPercent', [percent]);
+    await dao.addProposal(callData, staking.address, 'Change percent');
+    await dao.connect(addr1).vote(1, true);
+    await increaseTime(debatingPeriodDuration)
+    await dao.finishProposal(1)
+
+    const newPercent = await staking.percent()
+    expect(newPercent).to.be.eq(percent)
+  });
+  it("should revert if set freeze time by user", async () => {
+    const tx = staking.setPercent(50)
+    const reason = "Only owner"
+    await expect(tx).to.be.revertedWith(reason)
+  });
 });

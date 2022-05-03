@@ -67,7 +67,7 @@ contract Staking {
         rewardToken.safeTransfer(msg.sender, rewardAmount);
 
         delete sender.accumulated;
-        sender.timestamp = senderTimestamp + rewardQuantity * 600;
+        sender.timestamp = senderTimestamp + rewardQuantity * 604800;
 
         emit Claim(msg.sender, rewardAmount);
     }

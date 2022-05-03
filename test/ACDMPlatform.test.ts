@@ -10,23 +10,16 @@ import {
   Token,
   Token__factory
 } from "../typechain";
-import { BigNumber, ContractTransaction } from "ethers";
+import { BigNumber } from "ethers";
 import { StakingInterface } from "../typechain/Staking";
+import {increaseTime, getTransactionFee} from "./utils";
+import { ACDMPlatformInterface } from "../typechain/ACDMPlatform";
 
 chai.use(require("chai-bignumber")());
 
-async function increaseTime(time: number) {
-  await network.provider.send("evm_increaseTime", [time]);
-  await network.provider.send("evm_mine");
-}
-
-async function getTransactionFee(tx: ContractTransaction) {
-  const { effectiveGasPrice, cumulativeGasUsed } = await tx.wait();
-  return effectiveGasPrice.mul(cumulativeGasUsed);
-}
-
 describe("ACDMPlatform Contract", function () {
   let platform: ACDMPlatform;
+  let iPlatform: ACDMPlatformInterface;
   let dao: DAO;
   let ACDMToken: Token;
   let XXXToken: Token;
@@ -58,6 +51,7 @@ describe("ACDMPlatform Contract", function () {
     );
 
     iStaking = <StakingInterface>Staking.interface;
+    iPlatform = <ACDMPlatformInterface>Platform.interface;
 
     ACDMToken = await Token.deploy("ACADEM Coin", "ACDM", 6, 0);
     XXXToken = await Token.deploy("XXX Coin", "XXX", 18, ethers.utils.parseEther('100'));
@@ -1000,6 +994,31 @@ describe("ACDMPlatform Contract", function () {
       const tx = platform.setReferralRewardRedeemOrder(1001);
       const reason = "Incorrect percent";
       await expect(tx).to.be.revertedWith(reason);
+    });
+  });
+  describe("setRoundTime", () => {
+    it("should set new round time by DAO", async () => {
+      const newRoundTime = roundTime * 2;
+      const callData = iPlatform.encodeFunctionData('setRoundTime', [newRoundTime]);
+
+      await platform.transferOwnership(dao.address)
+      await LPToken.approve(staking.address, minimumQuorum)
+      await staking.stake(minimumQuorum)
+
+      await dao.addProposal(callData, platform.address, 'Change Round Time');
+      await dao.vote(1, true);
+
+      await increaseTime(debatingPeriodDuration)
+
+      await dao.finishProposal(1);
+
+      const currentRoundTime = await platform.roundTime()
+      expect(currentRoundTime).to.be.eq(newRoundTime)
+    });
+    it("should revert if set new round by user", async () => {
+      const tx = platform.connect(addr1).setRoundTime(1)
+      const reason = "Ownable: caller is not the owner"
+      await expect(tx).to.be.revertedWith(reason)
     });
   });
   describe("Events", () => {});

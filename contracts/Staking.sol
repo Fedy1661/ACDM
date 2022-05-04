@@ -10,20 +10,23 @@ contract Staking {
     IERC20 public immutable stakingToken;
     IERC20 public immutable rewardToken;
 
-    uint256 public freezeTime;
-    uint256 public percent;
+    uint256 public freezeTime; /// Time after which you can get the stake back
+    uint256 public percent; /// Percentage that is accrued.
 
     IDAO public owner;
 
     struct User {
-        uint256 amount;
-        uint256 timestamp;
-        uint256 stackedAt;
-        uint256 accumulated;
+        uint256 amount; /// Amount staked tokens
+        uint256 claimAt; /// Took the reward at this time
+        uint256 stackedAt; /// Stake tokens at this time
+        uint256 accumulated; /// Savings amount
     }
 
-    mapping(address => User) private _users;
+    mapping(address => User) private _users; /// address => user information
 
+    /**
+    * @dev Make sure that msg.sender is the owner
+    */
     modifier onlyOwner {
         require(msg.sender == address(owner), 'Only owner');
         _;
@@ -33,6 +36,12 @@ contract Staking {
     event Unstake(address indexed owner, uint256 amount);
     event Claim(address indexed owner, uint256 amount);
 
+    /**
+    * @param _stakingToken Staking token address
+    * @param _rewardsToken Rewards token address
+    * @param _freezeTime Time after which you can get the stake back
+    * @param _percent Percentage that is accrued
+    */
     constructor(address _stakingToken, address _rewardsToken, uint _freezeTime, uint256 _percent){
         owner = IDAO(msg.sender);
         stakingToken = IERC20(_stakingToken);
@@ -41,25 +50,32 @@ contract Staking {
         percent = _percent;
     }
 
+    /**
+    * @dev Stake tokens
+    * @param _amount Amount of stakingTokens
+    */
     function stake(uint256 _amount) public {
         stakingToken.safeTransferFrom(msg.sender, address(this), _amount);
 
         User storage sender = _users[msg.sender];
         uint256 senderAmount = sender.amount;
 
-        uint256 rewardQuantity = (block.timestamp - sender.timestamp) / 604800;
+        uint256 rewardQuantity = (block.timestamp - sender.claimAt) / 604800;
 
         sender.accumulated = (senderAmount * percent / 100) * rewardQuantity;
-        sender.timestamp = block.timestamp;
+        sender.claimAt = block.timestamp;
         sender.stackedAt = block.timestamp;
         sender.amount = senderAmount + _amount;
 
         emit Stake(msg.sender, _amount);
     }
 
+    /**
+    * @dev Claim rewards
+    */
     function claim() public {
         User storage sender = _users[msg.sender];
-        uint256 senderTimestamp = sender.timestamp;
+        uint256 senderTimestamp = sender.claimAt;
 
         uint256 rewardQuantity = (block.timestamp - senderTimestamp) / 604800;
         uint256 rewardAmount = (sender.amount * percent / 100) * rewardQuantity + sender.accumulated;
@@ -67,11 +83,14 @@ contract Staking {
         rewardToken.safeTransfer(msg.sender, rewardAmount);
 
         delete sender.accumulated;
-        sender.timestamp = senderTimestamp + rewardQuantity * 604800;
+        sender.claimAt = senderTimestamp + rewardQuantity * 604800;
 
         emit Claim(msg.sender, rewardAmount);
     }
 
+    /**
+    * @dev Get staked tokens back
+    */
     function unstake() public {
         User storage sender = _users[msg.sender];
         uint256 senderAmount = sender.amount;
@@ -81,7 +100,7 @@ contract Staking {
 
         stakingToken.safeTransfer(msg.sender, senderAmount);
 
-        uint256 rewardQuantity = (block.timestamp - sender.timestamp) / 604800;
+        uint256 rewardQuantity = (block.timestamp - sender.claimAt) / 604800;
         uint256 rewardAmount = (senderAmount * percent / 100) * rewardQuantity;
         sender.accumulated = sender.accumulated + rewardAmount;
         delete sender.amount;
@@ -89,19 +108,35 @@ contract Staking {
         emit Unstake(msg.sender, senderAmount);
     }
 
+    /**
+    * @dev Get user balance with staked tokens
+    * @param _user User address
+    */
     function balanceOf(address _user) public view returns(uint256) {
         return _users[_user].amount;
     }
 
+    /**
+    * @dev Set new freezeTime
+    * @param _freezeTime Time after which you can get the stake back
+    */
     function setFreezeTime(uint256 _freezeTime) public onlyOwner {
         freezeTime = _freezeTime;
     }
 
+    /**
+    * @dev Set new percent
+    * @param _percent The accrued percentage of the staked tokens
+    */
     function setPercent(uint256 _percent) public onlyOwner {
         require(_percent < 101, "Incorrect percent");
         percent = _percent;
     }
 
+    /**
+    * @dev Transfer of the owner's rights
+    * @param _newOwner New owner
+    */
     function transferOwnership(address _newOwner) public onlyOwner {
         owner = IDAO(_newOwner);
     }

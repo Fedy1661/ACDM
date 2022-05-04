@@ -34,8 +34,6 @@ contract DAO {
     mapping(uint256 => Proposal) private _proposals;
     mapping(address => uint256) private _electors; /// CanClaimAt
 
-    event Withdraw(address elector, uint256 amount);
-    event Deposit(address elector, uint256 amount);
     event Vote(uint256 id, address elector, uint256 amount, bool support);
     event FinishProposal(uint256 id, uint256 pros, uint256 cons, uint256 total, bool status);
     event NewProposal(uint256 id, bytes signature, address recipient, string description, uint256 finishAt);

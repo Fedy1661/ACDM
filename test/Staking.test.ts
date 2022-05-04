@@ -282,6 +282,26 @@ describe("Staking Contract", function() {
     });
   });
 
+  describe("transferOwnership", () => {
+    it("should change owner", async () => {
+      const newOwner = addr1.address;
+      const callData = iStaking.encodeFunctionData("transferOwnership", [newOwner])
+
+      await stakingToken.approve(staking.address, minimumQuorum)
+      await staking.stake(minimumQuorum);
+
+      await dao.addProposal(callData, staking.address, "Change owner")
+      await dao.vote(1, true)
+
+      await increaseTime(debatingPeriodDuration)
+
+      await dao.finishProposal(1)
+
+      const currentOwner = await staking.owner();
+      expect(currentOwner).to.be.equal(newOwner)
+    });
+  })
+
   it("should earn rewards for every week", async () => {
     await stakingToken.transfer(addr1.address, initValue);
     await rewardToken.transfer(staking.address, initValue);

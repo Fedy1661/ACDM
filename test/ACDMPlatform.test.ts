@@ -13,7 +13,7 @@ import {
 } from "../typechain";
 import { BigNumber } from "ethers";
 import { StakingInterface } from "../typechain/Staking";
-import { getTransactionFee, increaseTime } from "./utils";
+import { getBlockTimestamp, getTransactionFee, increaseTime } from "./utils";
 import { ACDMPlatformInterface } from "../typechain/ACDMPlatform";
 
 chai.use(require("chai-bignumber")());
@@ -21,15 +21,20 @@ chai.use(require("chai-bignumber")());
 describe("ACDMPlatform Contract", function () {
   let platform: ACDMPlatform;
   let iPlatform: ACDMPlatformInterface;
+
   let dao: DAO;
+
   let ACDMToken: Token;
   let XXXToken: Token;
   let LPToken: Token;
+
   let staking: Staking;
   let iStaking: StakingInterface;
+
   let totalSumForAllTokens: BigNumber;
   let amountTokensForSale: BigNumber;
   let initialEthPerToken: BigNumber;
+
   let owner: SignerWithAddress;
   let addr1: SignerWithAddress;
   let addr2: SignerWithAddress;
@@ -1073,7 +1078,165 @@ describe("ACDMPlatform Contract", function () {
       await expect(tx).to.be.revertedWith(reason);
     });
   });
-  describe("Events", () => {});
+  describe("Events", () => {
+    describe("NewOrder", () => {
+      it("should be correct", async () => {
+        const eventName = "NewOrder"
+
+        const seller = owner;
+        const pricePerToken = 1;
+        const value = totalSumForAllTokens;
+
+        await platform.startSaleRound();
+        await platform.buyACDM({ value });
+
+        await platform.startTradeRound();
+
+        await ACDMToken.approve(platform.address, amountTokensForSale);
+
+        const tx = platform.addOrder(amountTokensForSale, pricePerToken);
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(1, seller.address, amountTokensForSale, pricePerToken);
+      });
+    });
+    describe("RedeemOrder", () => {
+      it("should be correct", async () => {
+        const eventName = "RedeemOrder";
+
+        const buyer = addr1;
+        const seller = owner;
+        const value = totalSumForAllTokens;
+        const amount = amountTokensForSale;
+
+        await platform.startSaleRound();
+        await platform.buyACDM({ value });
+
+        await platform.startTradeRound();
+        await ACDMToken.approve(platform.address, amount);
+        await platform.addOrder(amount, 1);
+
+        const tx = platform.connect(buyer).redeemOrder(1, { value: amount });
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(buyer.address, seller.address, amount);
+      });
+    });
+    describe("RemoveOrder", () => {
+      it("should be correct", async () => {
+        const eventName = "RemoveOrder"
+
+        const seller = owner;
+        const value = totalSumForAllTokens;
+        const amount = amountTokensForSale;
+
+        await platform.startSaleRound();
+        await platform.buyACDM({ value });
+
+        await platform.startTradeRound();
+        await ACDMToken.approve(platform.address, amount);
+        await platform.addOrder(amount, 1);
+
+        const tx = platform.removeOrder(1);
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(seller.address, 1);
+      });
+    });
+    describe("Register", () => {
+      it("should be correct", async () => {
+        const eventName = "Register"
+
+        const referrer = owner;
+        const referral = addr1;
+
+        const tx = platform.connect(referral).register(referrer.address);
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(referral.address, referrer.address);
+      });
+    });
+    describe("StartSaleRound", () => {
+      it("should be correct", async () => {
+        const eventName = "StartSaleRound"
+
+        const tx = await platform.startSaleRound();
+        const timestamp = await getBlockTimestamp(tx);
+
+        expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(
+            amountTokensForSale,
+            initialEthPerToken,
+            timestamp + roundTime
+          );
+      });
+    });
+    describe("StartTradeRound", () => {
+      it("should be correct", async () => {
+        const eventName = "StartTradeRound"
+
+        await platform.startSaleRound();
+
+        await increaseTime(roundTime);
+
+        const tx = await platform.startTradeRound();
+        const timestamp = await getBlockTimestamp(tx);
+
+        expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(timestamp + roundTime);
+      });
+    });
+    describe("BuyACDM", () => {
+      it("should be correct", async () => {
+        const buyer = owner
+        const eventName = "BuyACDM"
+
+        await platform.startSaleRound();
+
+        const tx = await platform.buyACDM({value: totalSumForAllTokens})
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(buyer.address, amountTokensForSale);
+      });
+    });
+    describe("ChangeRoundTime", () => {
+      it("should be correct", async () => {
+        const eventName = "ChangeRoundTime"
+        const newRoundTime = roundTime * 2;
+
+        const tx = platform.setRoundTime(newRoundTime);
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(newRoundTime);
+      });
+    });
+    describe("ChangeReferralRewardBuyACDM", () => {
+      it("should be correct", async () => {
+        const eventName = "ChangeReferralRewardBuyACDM"
+
+        const firstLevel = 40;
+        const secondLevel = 40;
+
+        const tx = platform.setReferralRewardBuyACDM(firstLevel, secondLevel);
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(firstLevel, secondLevel);
+      });
+    });
+    describe("ChangeReferralRewardRedeemOrder", () => {
+      it("should be correct", async () => {
+        const eventName = "ChangeReferralRewardRedeemOrder"
+        const percent = 400;
+
+        const tx = await platform.setReferralRewardRedeemOrder(percent);
+        await expect(tx)
+          .to.be.emit(platform, eventName)
+          .withArgs(percent);
+      });
+    });
+  });
 
   it("should get reward after 1 week", async () => {
     const value = 100;

@@ -258,7 +258,7 @@ contract ACDMPlatform is Ownable {
     * @return firstLevel First referral level percent
     * @return secondLevel Second referral level percent
     */
-    function getReferralRewardBuyACDM() public view returns(uint256 firstLevel, uint256 secondLevel) {
+    function getReferralRewardBuyACDM() external view returns(uint256 firstLevel, uint256 secondLevel) {
         uint256 config = _referralConfig;
         firstLevel = config >> 128;
         secondLevel = config & uint256(type(uint128).max);

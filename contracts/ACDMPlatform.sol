@@ -69,11 +69,6 @@ contract ACDMPlatform is Ownable {
         require(_referrals[msg.sender] == address(0), "You are already registered");
         _referrals[msg.sender] = _referrer; /// Assign a referrer to a registered user
 
-        /// If the referrer has a referrer, then the registered user also gets level 2
-        address referrerFirstLevel = _referrals[_referrer];
-        if (referrerFirstLevel != address(0))
-            _referrals[_referrer] = referrerFirstLevel;
-
         emit Register(msg.sender, _referrer);
     }
 

@@ -37,15 +37,15 @@ contract ACDMPlatform is Ownable {
 
     event NewOrder(uint256 indexed orderId, address indexed seller, uint256 amount, uint256 pricePerToken);
     event RedeemOrder(address indexed buyer, address indexed seller, uint256 amount);
-    event RemoveOrder(uint256 indexed orderId);
+    event RemoveOrder(address indexed seller, uint256 indexed orderId);
     event Register(address user, address indexed referrer);
+    event BuyACDM(address indexed buyer, uint256 amountTokens);
     event StartSaleRound(uint256 amountTokensForSale, uint256 ethPerToken, uint256 saleRoundFinishAt);
     event StartTradeRound(uint256 tradeRoundFinishAt);
-    event BuyACDM(address indexed buyer, uint256 amountTokens);
 
     event ChangeRoundTime(uint256 roundTime);
-    event ChangeReferralRewardRedeemOrder(uint256 percent);
     event ChangeReferralRewardBuyACDM(uint256 firstLevel, uint256 secondLevel);
+    event ChangeReferralRewardRedeemOrder(uint256 percent);
 
     /**
     * @dev Checking for the activity of the trading round
@@ -250,7 +250,7 @@ contract ACDMPlatform is Ownable {
         ACDMToken.safeTransfer(msg.sender, orderAmount);
         delete order.amount;
 
-        emit RemoveOrder(_orderId);
+        emit RemoveOrder(msg.sender, _orderId);
     }
 
     /**

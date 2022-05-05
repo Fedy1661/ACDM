@@ -5,16 +5,14 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-
+import "./Staking.sol";
 
 contract DAO {
     using Counters for Counters.Counter;
 
     Counters.Counter private _voteCounter;
 
-    using SafeERC20 for IERC20;
-
-    IERC20 public immutable staking;
+    Staking public immutable staking;
     address public immutable chairperson;
     address public immutable owner;
     uint256 public minimumQuorum;
@@ -58,7 +56,7 @@ contract DAO {
     ) {
         owner = msg.sender;
         chairperson = _chairperson;
-        staking = IERC20(_staking);
+        staking = Staking(_staking);
         minimumQuorum = _minimumQuorum;
         debatingPeriodDuration = _debatingPeriodDuration;
     }

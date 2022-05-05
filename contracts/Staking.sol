@@ -3,7 +3,7 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "./IDAO.sol";
+import "./DAO.sol";
 
 contract Staking {
     using SafeERC20 for IERC20;
@@ -13,7 +13,7 @@ contract Staking {
     uint256 public freezeTime; /// Time after which you can get the stake back
     uint256 public percent; /// Percentage that is accrued.
 
-    IDAO public owner;
+    DAO public owner;
 
     struct User {
         uint256 amount; /// Amount staked tokens
@@ -43,7 +43,7 @@ contract Staking {
     * @param _percent Percentage that is accrued
     */
     constructor(address _stakingToken, address _rewardsToken, uint _freezeTime, uint256 _percent){
-        owner = IDAO(msg.sender);
+        owner = DAO(msg.sender);
         stakingToken = IERC20(_stakingToken);
         rewardToken = IERC20(_rewardsToken);
         freezeTime = _freezeTime;
@@ -138,6 +138,6 @@ contract Staking {
     * @param _newOwner New owner
     */
     function transferOwnership(address _newOwner) public onlyOwner {
-        owner = IDAO(_newOwner);
+        owner = DAO(_newOwner);
     }
 }

@@ -2,15 +2,10 @@
 
 pragma solidity ^0.8.0;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/Counters.sol";
 import "./Staking.sol";
 
 contract DAO {
-    using Counters for Counters.Counter;
-
-    Counters.Counter private _voteCounter;
+    uint256 private _voteCounter;
 
     Staking public immutable staking;
     address public immutable chairperson;
@@ -99,8 +94,7 @@ contract DAO {
     function addProposal(bytes calldata _callData, address _recipient, string calldata _description) external {
         require(msg.sender == chairperson, "Caller is not the chairperson");
 
-        _voteCounter.increment();
-        uint256 id = _voteCounter.current();
+        uint256 id = ++_voteCounter;
 
         Proposal storage proposal = _proposals[id];
         uint256 finishAt = block.timestamp + debatingPeriodDuration;

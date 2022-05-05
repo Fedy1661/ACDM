@@ -43,11 +43,18 @@ contract ACDMPlatform is Ownable {
     event StartTradeRound(uint256 tradeRoundFinishAt);
     event BuyACDM(address indexed buyer, uint256 amountTokens);
 
+    /**
+    * @dev Checking for the activity of the trading round
+    */
     modifier onlyTradeRound {
         require(tradeRoundFinishAt > block.timestamp, "Trade round is not active");
         _;
     }
 
+    /**
+    * @param _ACDMToken Address ACDMToken
+    * @param _roundTime Round time
+    */
      constructor(address _ACDMToken, uint256 _roundTime) {
          ACDMToken = IERC20Mintable(_ACDMToken);
          roundTime = _roundTime;

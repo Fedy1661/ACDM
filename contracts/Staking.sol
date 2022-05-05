@@ -60,7 +60,7 @@ contract Staking {
         User storage sender = _users[msg.sender];
         uint256 senderAmount = sender.amount;
 
-        uint256 rewardQuantity = (block.timestamp - sender.claimAt) / 604800;
+        uint256 rewardQuantity = (block.timestamp - sender.claimAt) / 7 days;
 
         sender.accumulated = (senderAmount * percent / 100) * rewardQuantity;
         sender.claimAt = block.timestamp;
@@ -77,7 +77,7 @@ contract Staking {
         User storage sender = _users[msg.sender];
         uint256 senderTimestamp = sender.claimAt;
 
-        uint256 rewardQuantity = (block.timestamp - senderTimestamp) / 604800;
+        uint256 rewardQuantity = (block.timestamp - senderTimestamp) / 7 days;
         uint256 rewardAmount = (sender.amount * percent / 100) * rewardQuantity + sender.accumulated;
 
         rewardToken.safeTransfer(msg.sender, rewardAmount);
@@ -100,7 +100,7 @@ contract Staking {
 
         stakingToken.safeTransfer(msg.sender, senderAmount);
 
-        uint256 rewardQuantity = (block.timestamp - sender.claimAt) / 604800;
+        uint256 rewardQuantity = (block.timestamp - sender.claimAt) / 7 days;
         uint256 rewardAmount = (senderAmount * percent / 100) * rewardQuantity;
         sender.accumulated = sender.accumulated + rewardAmount;
         delete sender.amount;

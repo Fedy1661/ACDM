@@ -973,6 +973,22 @@ describe("ACDMPlatform Contract", function () {
       const reason = "You are not an owner";
       await expect(tx).to.be.revertedWith(reason);
     });
+    it("should revert if order amount equals 0", async () => {
+      const value = totalSumForAllTokens;
+
+      await platform.startSaleRound();
+      await platform.buyACDM({ value });
+      await platform.startTradeRound();
+
+      await ACDMToken.approve(platform.address, amountTokensForSale);
+
+      await platform.addOrder(amountTokensForSale, 1);
+      await platform.redeemOrder(1, { value: amountTokensForSale });
+
+      const tx = platform.removeOrder(1);
+      const reason = "Order is empty";
+      await expect(tx).to.be.revertedWith(reason);
+    });
     it("should delete order", async () => {
       const value = totalSumForAllTokens;
 

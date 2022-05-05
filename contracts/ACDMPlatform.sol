@@ -242,10 +242,14 @@ contract ACDMPlatform is Ownable {
     */
     function removeOrder(uint256 _orderId) external onlyTradeRound {
         Order storage order = _orders[_orderId];
-        require(order.seller == msg.sender, "You are not an owner");
+        uint256 orderAmount = order.amount;
 
-        ACDMToken.safeTransfer(msg.sender, order.amount);
+        require(order.seller == msg.sender, "You are not an owner");
+        require(orderAmount > 0, "Order is empty");
+
+        ACDMToken.safeTransfer(msg.sender, orderAmount);
         delete order.amount;
+
         emit RemoveOrder(_orderId);
     }
 

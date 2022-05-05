@@ -89,6 +89,7 @@ contract ACDMPlatform is Ownable {
         uint256 ethPerToken_ = ethPerToken; /// ethPerToken from storage to memory, to save gas
         uint256 _saleRoundFinishAt = block.timestamp + roundTime; /// Counting round's end
         uint256 _amountTokensForSale = totalTradingSum / ethPerToken_; /// Amount tokens for Sale Round
+
         amountTokensForSale = _amountTokensForSale; /// To storage
         saleRoundFinishAt = _saleRoundFinishAt; /// To storage
 

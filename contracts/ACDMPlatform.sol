@@ -43,6 +43,10 @@ contract ACDMPlatform is Ownable {
     event StartTradeRound(uint256 tradeRoundFinishAt);
     event BuyACDM(address indexed buyer, uint256 amountTokens);
 
+    event ChangeRoundTime(uint256 roundTime);
+    event ChangeReferralRewardRedeemOrder(uint256 percent);
+    event ChangeReferralRewardBuyACDM(uint256 firstLevel, uint256 secondLevel);
+
     /**
     * @dev Checking for the activity of the trading round
     */
@@ -270,6 +274,7 @@ contract ACDMPlatform is Ownable {
     function setReferralRewardBuyACDM(uint256 _firstLevel, uint256 _secondLevel) external onlyOwner {
         require(_firstLevel + _secondLevel < 1001, "Incorrect percent");
         _referralConfig = (_firstLevel << 128) + _secondLevel;
+        emit ChangeReferralRewardBuyACDM(_firstLevel, _secondLevel);
     }
 
     /**
@@ -281,6 +286,7 @@ contract ACDMPlatform is Ownable {
     function setReferralRewardRedeemOrder(uint256 _percent) external onlyOwner {
         require(_percent < 501, "Incorrect percent");
         rewardReferralsRedeemOrder = _percent;
+        emit ChangeReferralRewardRedeemOrder(_percent);
     }
 
     /**
@@ -290,5 +296,6 @@ contract ACDMPlatform is Ownable {
     */
     function setRoundTime(uint256 _roundTime) external onlyOwner {
         roundTime = _roundTime;
+        emit ChangeRoundTime(_roundTime);
     }
 }

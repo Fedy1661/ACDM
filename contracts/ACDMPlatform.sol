@@ -2,13 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "./IERC20Mintable.sol";
 
-contract ACDMPlatform is Ownable {
+contract ACDMPlatform {
     using SafeERC20 for IERC20Mintable;
 
     IERC20Mintable public immutable ACDMToken;
+    address public immutable DAO;
     uint256 private _orderCounter; /// ID for a new order
 
     /// The time after which you can complete the round
@@ -56,12 +56,21 @@ contract ACDMPlatform is Ownable {
     }
 
     /**
+     * @dev is DAO?
+     */
+    modifier onlyDAO {
+        require(msg.sender == DAO, "Only DAO");
+        _;
+    }
+
+    /**
     * @param _ACDMToken Address ACDMToken
     * @param _roundTime Round time
     */
-     constructor(address _ACDMToken, uint256 _roundTime) {
+     constructor(address _ACDMToken, uint256 _roundTime, address _DAO) {
          ACDMToken = IERC20Mintable(_ACDMToken);
          roundTime = _roundTime;
+         DAO = _DAO;
      }
 
     /**
@@ -271,7 +280,7 @@ contract ACDMPlatform is Ownable {
     * @param _firstLevel First level percent
     * @param _secondLevel Second level percent
     */
-    function setReferralRewardBuyACDM(uint256 _firstLevel, uint256 _secondLevel) external onlyOwner {
+    function setReferralRewardBuyACDM(uint256 _firstLevel, uint256 _secondLevel) external onlyDAO {
         require(_firstLevel + _secondLevel < 1001, "Incorrect percent");
         _referralConfig = (_firstLevel << 128) + _secondLevel;
         emit ChangeReferralRewardBuyACDM(_firstLevel, _secondLevel);
@@ -283,7 +292,7 @@ contract ACDMPlatform is Ownable {
     * Can by called by the owner
     * @param _percent Percent to first, second levels
     */
-    function setReferralRewardRedeemOrder(uint256 _percent) external onlyOwner {
+    function setReferralRewardRedeemOrder(uint256 _percent) external onlyDAO {
         require(_percent < 501, "Incorrect percent");
         rewardReferralsRedeemOrder = _percent;
         emit ChangeReferralRewardRedeemOrder(_percent);
@@ -294,7 +303,7 @@ contract ACDMPlatform is Ownable {
     * Can by called by the owner
     * @param _roundTime Round Time(seconds)
     */
-    function setRoundTime(uint256 _roundTime) external onlyOwner {
+    function setRoundTime(uint256 _roundTime) external onlyDAO {
         roundTime = _roundTime;
         emit ChangeRoundTime(_roundTime);
     }

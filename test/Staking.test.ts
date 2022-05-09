@@ -348,20 +348,6 @@ describe("Staking Contract", function() {
     expect(balance).to.be.equal(reward);
   });
 
-  /*
-  Посчитал затратным добавлять в функцию еще одну проверку msg.value > 0,
-  помимо msg.value > 0 в ERC20.transfer
-    it("should be reverted when nothing to withdraw", async () => {
-    await stakingToken.transfer(addr1.address, initValue);
-    await rewardToken.transfer(staking.address, initValue);
-    await stakingToken.connect(addr1).approve(staking.address, initValue);
-    await staking.connect(addr1).stake(initValue);
-
-    const tx = staking.connect(addr1).claim();
-    await expect(tx).to.be.revertedWith("Nothing to withdraw");
-  });
-   */
-
   it("should save time after claim", async () => {
     await stakingToken.transfer(addr1.address, initValue);
     await rewardToken.transfer(staking.address, initValue);

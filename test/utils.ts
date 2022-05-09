@@ -16,3 +16,5 @@ export async function getBlockTimestamp(tx: ContractTransaction): Promise<number
   const block = await ethers.provider.getBlock(blockNumber);
   return block.timestamp;
 }
+
+export const daysToSeconds = (days: number) => 60 * 60 * 24 * days;

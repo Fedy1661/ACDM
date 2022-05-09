@@ -13,7 +13,12 @@ import {
 } from "../typechain";
 import { BigNumber } from "ethers";
 import { StakingInterface } from "../typechain/Staking";
-import { getBlockTimestamp, getTransactionFee, increaseTime } from "./utils";
+import {
+  daysToSeconds,
+  getBlockTimestamp,
+  getTransactionFee,
+  increaseTime,
+} from "./utils";
 import { ACDMPlatformInterface } from "../typechain/ACDMPlatform";
 
 chai.use(require("chai-bignumber")());
@@ -42,9 +47,9 @@ describe("ACDMPlatform Contract", function () {
   let addr4: SignerWithAddress;
   let clean: string;
 
-  const roundTime = 60 * 60 * 24 * 3;
-  const debatingPeriodDuration = 60 * 60 * 24 * 3;
-  const freezeTime = 60 * 60 * 24 * 30;
+  const roundTime = daysToSeconds(3);
+  const debatingPeriodDuration = daysToSeconds(3);
+  const freezeTime = daysToSeconds(30);
   const minimumQuorum = 100;
 
   before(async () => {
@@ -1247,7 +1252,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(100);
 
-    await increaseTime(60 * 60 * 24 * 7);
+    await increaseTime(daysToSeconds(7));
 
     await staking.connect(addr1).claim();
     const balance = await XXXToken.balanceOf(addr1.address);
@@ -1261,7 +1266,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(value);
 
-    await increaseTime(60 * 60 * 24 * 30);
+    await increaseTime(freezeTime);
 
     await staking.connect(addr1).unstake();
     const balance = await LPToken.balanceOf(addr1.address);
@@ -1290,7 +1295,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(value);
 
-    await increaseTime(60 * 60 * 24 * 29);
+    await increaseTime(freezeTime / 2);
 
     const tx = staking.connect(addr1).unstake();
     const reason = "Freezing time has not passed";
@@ -1306,7 +1311,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(value);
 
-    await increaseTime(60 * 60 * 24 * 7);
+    await increaseTime(daysToSeconds(7));
 
     await staking.connect(addr1).claim();
     const balance = await XXXToken.balanceOf(addr1.address);
@@ -1321,7 +1326,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(value);
 
-    await increaseTime(60 * 60 * 24 * 30);
+    await increaseTime(freezeTime);
 
     const callData = iStaking.encodeFunctionData("setPercent", [5]);
     await dao.addProposal(callData, staking.address, "Change percent");
@@ -1338,7 +1343,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(value);
 
-    await increaseTime(60 * 60 * 24 * 30);
+    await increaseTime(freezeTime);
 
     const callData = iStaking.encodeFunctionData("setPercent", [5]);
     await dao.addProposal(callData, staking.address, "Change percent");
@@ -1359,7 +1364,7 @@ describe("ACDMPlatform Contract", function () {
     await LPToken.connect(addr1).approve(staking.address, value);
     await staking.connect(addr1).stake(value);
 
-    await increaseTime(60 * 60 * 24 * 30);
+    await increaseTime(freezeTime);
 
     const callData = iStaking.encodeFunctionData("setPercent", [percent]);
     await dao.addProposal(callData, staking.address, "Change percent");

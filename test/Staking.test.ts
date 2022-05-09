@@ -9,7 +9,7 @@ import {
   Token,
   Token__factory,
 } from "../typechain";
-import { increaseTime } from "./utils";
+import { daysToSeconds, increaseTime } from "./utils";
 import { StakingInterface } from "../typechain/Staking";
 
 chai.use(require("chai-bignumber")());
@@ -25,11 +25,11 @@ describe("Staking Contract", function() {
   let clean: string;
 
   const initValue = 100;
-  const freezeTime = 60 * 60 * 24 * 30;
-  const keepStakeToGetRewards = 60 * 60 * 24 * 7;
+  const freezeTime = daysToSeconds(30);
+  const keepStakeToGetRewards = daysToSeconds(7)
   const percent = 1;
 
-  const debatingPeriodDuration = 60 * 60 * 24 * 3;
+  const debatingPeriodDuration = daysToSeconds(3);
   const minimumQuorum = 5000;
 
   before(async () => {
@@ -169,13 +169,11 @@ describe("Staking Contract", function() {
       await stakingToken.connect(addr1).approve(staking.address, initValue);
       await staking.connect(addr1).stake(initValue);
 
-      await network.provider.send("evm_increaseTime", [freezeTime]);
-      await network.provider.send("evm_mine");
+      await increaseTime(freezeTime)
 
       await staking.connect(addr1).unstake();
 
-      await network.provider.send("evm_increaseTime", [freezeTime]);
-      await network.provider.send("evm_mine");
+      await increaseTime(freezeTime)
 
       const tx = staking.connect(addr1).unstake();
       const reason = "Value should be positive"
@@ -188,8 +186,7 @@ describe("Staking Contract", function() {
       await stakingToken.connect(addr1).approve(staking.address, initValue);
       await staking.connect(addr1).stake(initValue);
 
-      await network.provider.send("evm_increaseTime", [freezeTime]);
-      await network.provider.send("evm_mine");
+      await increaseTime(freezeTime)
 
       await staking.connect(addr1).unstake();
 
@@ -219,8 +216,7 @@ describe("Staking Contract", function() {
 
       await staking.connect(addr1).stake(initValue);
 
-      await network.provider.send("evm_increaseTime", [freezeTime]);
-      await network.provider.send("evm_mine");
+      await increaseTime(freezeTime)
 
       const tx = staking.connect(addr1).unstake();
       await expect(tx).to.be.emit(staking, 'Unstake');
@@ -323,8 +319,7 @@ describe("Staking Contract", function() {
     await stakingToken.connect(addr1).approve(staking.address, initValue);
     await staking.connect(addr1).stake(initValue);
 
-    await network.provider.send("evm_increaseTime", [60 * 60 * 24 * 7]);
-    await network.provider.send("evm_mine");
+    await increaseTime(keepStakeToGetRewards)
 
     await staking.connect(addr1).claim();
     const reward = initValue * percent / 100;
@@ -379,6 +374,4 @@ describe("Staking Contract", function() {
     const tx = staking.connect(addr1).claim();
     await expect(tx).to.be.emit(staking, 'Claim');
   });
-
-
 });

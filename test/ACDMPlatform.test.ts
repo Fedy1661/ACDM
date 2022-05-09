@@ -78,7 +78,6 @@ describe("ACDMPlatform Contract", function () {
     staking = await Staking.deploy(
       LPToken.address,
       XXXToken.address,
-      freezeTime,
       3
     );
     dao = await DAO.deploy(
@@ -1269,6 +1268,21 @@ describe("ACDMPlatform Contract", function () {
     expect(balance).to.be.eq(value);
   });
   it("should revert if withdraw tokens earlier than 30 days", async () => {
+    const newFreezeTime = freezeTime + 1;
+    const callData = iStaking.encodeFunctionData("setFreezeTime", [
+      newFreezeTime,
+    ]);
+
+    await LPToken.approve(staking.address, minimumQuorum);
+    await staking.stake(minimumQuorum);
+
+    await dao.addProposal(callData, staking.address, "Change freezeTime");
+    await dao.vote(1, true);
+
+    await increaseTime(debatingPeriodDuration);
+
+    await dao.finishProposal(1);
+
     const value = 100;
 
     await XXXToken.transfer(staking.address, 1000000);

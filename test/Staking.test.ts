@@ -47,7 +47,7 @@ describe("Staking Contract", function() {
     await rewardToken.deployed();
 
     staking = await Staking.deploy(
-      stakingToken.address, rewardToken.address, freezeTime, percent
+      stakingToken.address, rewardToken.address, percent
     );
     [owner, addr1] = await ethers.getSigners();
     await staking.deployed();
@@ -71,8 +71,8 @@ describe("Staking Contract", function() {
     it("rewardToken should be valid", async () => {
       expect(await staking.rewardToken()).to.be.equal(rewardToken.address)
     });
-    it("freezeTime should be valid", async () => {
-      expect(await staking.freezeTime()).to.be.equal(freezeTime);
+    it("freezeTime should be equal 0", async () => {
+      expect(await staking.freezeTime()).to.be.equal(0);
     });
     it("percent should be valid", async () => {
       expect(await staking.percent()).to.be.equal(percent);
@@ -139,6 +139,21 @@ describe("Staking Contract", function() {
       await expect(tx).to.be.revertedWith(reason)
     });
     it("should throw error if less than freezeTime have passed after staking", async () => {
+      const newFreezeTime = freezeTime + 1;
+      const callData = iStaking.encodeFunctionData("setFreezeTime", [
+        newFreezeTime,
+      ]);
+
+      await stakingToken.approve(staking.address, minimumQuorum);
+      await staking.stake(minimumQuorum);
+
+      await dao.addProposal(callData, staking.address, "Change freezeTime");
+      await dao.vote(1, true);
+
+      await increaseTime(debatingPeriodDuration);
+
+      await dao.finishProposal(1);
+
       await stakingToken.transfer(addr1.address, initValue);
       await rewardToken.transfer(staking.address, initValue);
       await stakingToken.connect(addr1).approve(staking.address, initValue);

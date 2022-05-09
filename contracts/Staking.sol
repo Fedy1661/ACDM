@@ -39,14 +39,12 @@ contract Staking {
     /**
     * @param _stakingToken Staking token address
     * @param _rewardsToken Rewards token address
-    * @param _freezeTime Time after which you can get the stake back
     * @param _percent Percentage that is accrued
     */
-    constructor(address _stakingToken, address _rewardsToken, uint _freezeTime, uint256 _percent){
+    constructor(address _stakingToken, address _rewardsToken, uint256 _percent){
         owner = DAO(msg.sender);
         stakingToken = IERC20(_stakingToken);
         rewardToken = IERC20(_rewardsToken);
-        freezeTime = _freezeTime;
         percent = _percent;
     }
 
